@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets, QtSvgWidgets
 
 from zimo.core.api_client import ApiClient
 from zimo.core.module_base import ModuleBase
@@ -16,6 +17,7 @@ class ModuleEntry:
     module: ModuleBase
     button: QtWidgets.QPushButton
     widget: QtWidgets.QWidget
+    status_dot: QtWidgets.QLabel
 
 
 class ZiMOShell(QtWidgets.QMainWindow):
@@ -26,6 +28,10 @@ class ZiMOShell(QtWidgets.QMainWindow):
 
         self._api = ApiClient()
         self._modules: list[ModuleEntry] = []
+        self._module_status = {
+            "Vision Processing Unit": True,
+            "Vibration": False,
+        }
 
         root = QtWidgets.QWidget()
         root_layout = QtWidgets.QVBoxLayout(root)
@@ -58,8 +64,10 @@ class ZiMOShell(QtWidgets.QMainWindow):
         layout = QtWidgets.QHBoxLayout(bar)
         layout.setContentsMargins(24, 12, 24, 12)
 
-        logo = QtWidgets.QLabel("ZiMO")
+        logo_path = Path(__file__).with_name("logo-placeholder.svg")
+        logo = QtSvgWidgets.QSvgWidget(str(logo_path))
         logo.setObjectName("Logo")
+        logo.setFixedSize(80, 28)
         status = QtWidgets.QLabel("Online · 3 devices")
         status.setObjectName("Status")
         status.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
@@ -92,14 +100,25 @@ class ZiMOShell(QtWidgets.QMainWindow):
             panel = module.create_panel(self._api)
             self._stack.addWidget(panel)
 
+            row = QtWidgets.QWidget()
+            row_layout = QtWidgets.QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(8)
+
+            status_dot = self._build_status_dot(self._module_status.get(module.title, False))
+            row_layout.addWidget(status_dot)
+
             button = QtWidgets.QPushButton(module.title)
             button.setCheckable(True)
             button.setCursor(QtCore.Qt.PointingHandCursor)
             button.clicked.connect(lambda checked, m=module: self._select_module(m))
+            row_layout.addWidget(button, 1)
 
-            sidebar_layout.insertWidget(sidebar_layout.count() - 1, button)
+            sidebar_layout.insertWidget(sidebar_layout.count() - 2, row)
 
-            self._modules.append(ModuleEntry(module=module, button=button, widget=panel))
+            self._modules.append(
+                ModuleEntry(module=module, button=button, widget=panel, status_dot=status_dot)
+            )
 
         if self._modules:
             self._select_module(self._modules[0].module)
@@ -110,3 +129,10 @@ class ZiMOShell(QtWidgets.QMainWindow):
             entry.button.setChecked(is_active)
             if is_active:
                 self._stack.setCurrentWidget(entry.widget)
+
+    @staticmethod
+    def _build_status_dot(is_online: bool) -> QtWidgets.QLabel:
+        dot = QtWidgets.QLabel("●")
+        dot.setObjectName("StatusDot")
+        dot.setProperty("severity", "success" if is_online else "danger")
+        return dot
