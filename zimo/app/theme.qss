@@ -1,0 +1,163 @@
+/* ZiMO theme based on zimo.no (dark, industrial, red accent) */
+
+* {
+    color: #e7eaee;
+    font-family: "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
+    font-size: 14px;
+}
+
+QWidget#AppContainer {
+    background-color: #0b0d10;
+}
+
+QFrame#Sidebar {
+    background-color: #111418;
+    border: 1px solid #1d2228;
+    border-radius: 18px;
+}
+
+QLabel#SidebarBrand {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 2px;
+}
+
+QLabel#SidebarSubtitle {
+    color: #9aa4af;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+QListWidget#ModuleList {
+    background-color: transparent;
+    border: none;
+    outline: none;
+}
+
+QListWidget#ModuleList::item {
+    background-color: transparent;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    color: #c5cbd3;
+}
+
+QListWidget#ModuleList::item:selected {
+    background-color: #1b2026;
+    color: #ffffff;
+    border: 1px solid #2a3038;
+}
+
+QFrame#Topbar {
+    background-color: #111418;
+    border: 1px solid #1f242b;
+    border-radius: 18px;
+}
+
+QLabel#TopbarTitle {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+QLabel#TopbarStatus {
+    color: #8b95a1;
+}
+
+QLabel#ModuleHeader {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+QFrame#Card {
+    background-color: #111418;
+    border: 1px solid #1f242b;
+    border-radius: 18px;
+}
+
+QLabel#CardTitle {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #9aa4af;
+}
+
+QLabel#StatusOnline {
+    color: #4bd37b;
+    font-weight: 600;
+}
+
+QLabel#StatusOffline {
+    color: #d6424a;
+    font-weight: 600;
+}
+
+QLabel#MetricLabel {
+    color: #8b95a1;
+}
+
+QLabel#MetricValue {
+    font-weight: 600;
+}
+
+QFrame#MediaPlaceholder {
+    background-color: #0a0c0f;
+    border: 1px dashed #2a3038;
+    border-radius: 14px;
+    min-height: 220px;
+}
+
+QFrame#SliderBlock {
+    background-color: #0f1216;
+    border: 1px solid #1f242b;
+    border-radius: 14px;
+}
+
+QLabel#SliderLabel {
+    color: #c5cbd3;
+    font-weight: 600;
+}
+
+QSlider#ControlSlider::groove:horizontal {
+    background: #1d2228;
+    height: 6px;
+    border-radius: 3px;
+}
+
+QSlider#ControlSlider::handle:horizontal {
+    background: #e50914;
+    width: 16px;
+    margin: -6px 0;
+    border-radius: 8px;
+}
+
+QProgressBar#ControlMeter {
+    background-color: #111418;
+    border: 1px solid #1f242b;
+    border-radius: 6px;
+    height: 8px;
+}
+
+QProgressBar#ControlMeter::chunk {
+    background-color: #e50914;
+    border-radius: 6px;
+}
+
+QScrollBar:vertical {
+    background: #0f1216;
+    width: 10px;
+    margin: 2px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical {
+    background: #2a3038;
+    border-radius: 5px;
+    min-height: 40px;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0px;
+}
