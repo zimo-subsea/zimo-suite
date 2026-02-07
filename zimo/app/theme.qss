@@ -127,6 +127,41 @@ QPushButton#SelectionPen:hover {
     color: #ffffff;
 }
 
+QPushButton#GearButton {
+    background-color: #141820;
+    border: 1px solid #242a35;
+    border-radius: 16px;
+    padding: 6px 10px;
+    font-size: 16px;
+    text-align: center;
+    min-width: 32px;
+    max-width: 32px;
+}
+
+QPushButton#GearButton:hover {
+    border-color: #313a47;
+    background-color: #1a1f2a;
+}
+
+QCheckBox#ToggleSwitch {
+    spacing: 8px;
+    font-size: 12px;
+    color: #d5d8de;
+}
+
+QCheckBox#ToggleSwitch::indicator {
+    width: 36px;
+    height: 18px;
+    border-radius: 9px;
+    background-color: #1f2530;
+    border: 1px solid #2a313d;
+}
+
+QCheckBox#ToggleSwitch::indicator:checked {
+    background-color: #e11b22;
+    border: 1px solid #e11b22;
+}
+
 QSlider::groove:horizontal {
     height: 6px;
     border-radius: 3px;
@@ -138,12 +173,20 @@ QSlider::sub-page:horizontal {
     border-radius: 3px;
 }
 
+QSlider::sub-page:horizontal:disabled {
+    background: #343b46;
+}
+
 QSlider::handle:horizontal {
     background: #f4f5f7;
     width: 14px;
     height: 14px;
     margin: -5px 0;
     border-radius: 7px;
+}
+
+QSlider::handle:horizontal:disabled {
+    background: #5a616b;
 }
 
 QLabel {

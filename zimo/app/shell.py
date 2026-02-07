@@ -23,7 +23,7 @@ class ModuleEntry:
 class ZiMOShell(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("ZiMO Control")
+        self.setWindowTitle("ZiMO Suite")
         self.resize(1280, 800)
 
         self._api = ApiClient()
@@ -64,7 +64,7 @@ class ZiMOShell(QtWidgets.QMainWindow):
         layout = QtWidgets.QHBoxLayout(bar)
         layout.setContentsMargins(24, 12, 24, 12)
 
-        logo_path = Path(__file__).with_name("logo-placeholder.svg")
+        logo_path = Path(__file__).with_name("header_logo.svg")
         logo = QtSvgWidgets.QSvgWidget(str(logo_path))
         logo.setObjectName("Logo")
         logo.setFixedSize(80, 28)

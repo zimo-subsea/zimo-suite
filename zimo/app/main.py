@@ -13,8 +13,8 @@ def load_theme(app: QtWidgets.QApplication) -> None:
 
 def main() -> None:
     app = QtWidgets.QApplication(sys.argv)
-    app.setApplicationName("ZiMO")
-    app.setOrganizationName("ZiMO")
+    app.setApplicationName("ZiMO Suite")
+    app.setOrganizationName("ZiMO Suite")
     load_theme(app)
 
     window = ZiMOShell()

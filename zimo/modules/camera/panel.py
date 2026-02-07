@@ -36,8 +36,6 @@ class CameraPanel(QtWidgets.QWidget):
 
         layout.addWidget(header)
         layout.addWidget(subtitle)
-        layout.addWidget(self._build_status_legend())
-
         body_layout = QtWidgets.QHBoxLayout()
         body_layout.setSpacing(16)
 
@@ -49,6 +47,8 @@ class CameraPanel(QtWidgets.QWidget):
 
         left_column.addWidget(selection_card, 1)
         left_column.addWidget(status_card, 1)
+        left_column.addStretch()
+        left_column.addWidget(self._build_status_legend())
 
         settings_card = self._build_settings_card()
 
@@ -157,47 +157,56 @@ class CameraPanel(QtWidgets.QWidget):
         current_label = QtWidgets.QLabel(self._camera_names[self._current_camera_index])
         current_label.setObjectName("CardValue")
         self._current_camera_label = current_label
-        layout.addWidget(current_label)
+        header_row = QtWidgets.QHBoxLayout()
+        header_row.addWidget(current_label)
+        header_row.addStretch()
+        enable_toggle = self._build_toggle("On", "Off")
+        enable_toggle.toggled.connect(lambda checked: self._update_toggle_label(enable_toggle, "On", "Off"))
+        self._update_toggle_label(enable_toggle, "On", "Off")
+        header_row.addWidget(enable_toggle)
+        layout.addLayout(header_row)
 
         form = QtWidgets.QGridLayout()
         form.setHorizontalSpacing(12)
         form.setVerticalSpacing(10)
+        form.setColumnStretch(1, 1)
 
         row = 0
 
-        enable_toggle = self._build_toggle("On")
-        form.addWidget(QtWidgets.QLabel("Enable / Disable camera"), row, 0)
-        form.addWidget(enable_toggle, row, 1)
+        fps_selector = QtWidgets.QComboBox()
+        fps_selector.addItems(["24 FPS", "30 FPS", "60 FPS", "90 FPS", "120 FPS"])
+        form.addWidget(QtWidgets.QLabel("FPS"), row, 0)
+        form.addWidget(fps_selector, row, 1)
         row += 1
 
-        auto_exposure_toggle = self._build_toggle("Auto")
-        form.addWidget(QtWidgets.QLabel("Auto Exposure"), row, 0)
-        form.addWidget(auto_exposure_toggle, row, 1)
-        row += 1
-
-        auto_gain_toggle = self._build_toggle("Auto")
-        form.addWidget(QtWidgets.QLabel("Auto Gain"), row, 0)
-        form.addWidget(auto_gain_toggle, row, 1)
-        row += 1
-
-        auto_wb_toggle = self._build_toggle("Auto")
-        form.addWidget(QtWidgets.QLabel("Auto WB"), row, 0)
-        form.addWidget(auto_wb_toggle, row, 1)
+        resolution_selector = QtWidgets.QComboBox()
+        resolution_selector.addItems(["1280 × 720", "1920 × 1080", "2560 × 1440", "3840 × 2160 (4K)"])
+        form.addWidget(QtWidgets.QLabel("Resolution"), row, 0)
+        form.addWidget(resolution_selector, row, 1)
         row += 1
 
         exposure_slider = self._build_slider()
+        auto_exposure_toggle = self._build_toggle("Auto", "Manual")
+        self._bind_auto_toggle(auto_exposure_toggle, exposure_slider)
         form.addWidget(QtWidgets.QLabel("Exposure"), row, 0)
         form.addWidget(exposure_slider, row, 1)
+        form.addWidget(auto_exposure_toggle, row, 2)
         row += 1
 
         gain_slider = self._build_slider()
+        auto_gain_toggle = self._build_toggle("Auto", "Manual")
+        self._bind_auto_toggle(auto_gain_toggle, gain_slider)
         form.addWidget(QtWidgets.QLabel("Gain"), row, 0)
         form.addWidget(gain_slider, row, 1)
+        form.addWidget(auto_gain_toggle, row, 2)
         row += 1
 
         wb_slider = self._build_slider()
+        auto_wb_toggle = self._build_toggle("Auto", "Manual")
+        self._bind_auto_toggle(auto_wb_toggle, wb_slider)
         form.addWidget(QtWidgets.QLabel("White balance"), row, 0)
         form.addWidget(wb_slider, row, 1)
+        form.addWidget(auto_wb_toggle, row, 2)
         row += 1
 
         reset_button = QtWidgets.QPushButton("Reset to defaults")
@@ -206,13 +215,9 @@ class CameraPanel(QtWidgets.QWidget):
         form.addWidget(reset_button, row, 1)
         row += 1
 
-        advanced_button = QtWidgets.QPushButton("Advanced settings")
-        advanced_button.setCursor(QtCore.Qt.PointingHandCursor)
-        form.addWidget(QtWidgets.QLabel("Advanced"), row, 0)
-        form.addWidget(advanced_button, row, 1)
-        row += 1
-
-        aruco_toggle = self._build_toggle("On")
+        aruco_toggle = self._build_toggle("On", "Off")
+        aruco_toggle.toggled.connect(lambda checked: self._update_toggle_label(aruco_toggle, "On", "Off"))
+        self._update_toggle_label(aruco_toggle, "On", "Off")
         form.addWidget(QtWidgets.QLabel("Enable ArUco"), row, 0)
         form.addWidget(aruco_toggle, row, 1)
         row += 1
@@ -232,6 +237,27 @@ class CameraPanel(QtWidgets.QWidget):
         row += 1
 
         layout.addLayout(form)
+
+        gear_row = QtWidgets.QHBoxLayout()
+        advanced_button = QtWidgets.QPushButton("⚙")
+        advanced_button.setObjectName("GearButton")
+        advanced_button.setCursor(QtCore.Qt.PointingHandCursor)
+        advanced_label = QtWidgets.QLabel("Advanced settings")
+        advanced_label.setObjectName("CardMeta")
+        gear_row.addStretch()
+        gear_row.addWidget(advanced_label)
+        gear_row.addWidget(advanced_button)
+        layout.addLayout(gear_row)
+
+        presets_row = QtWidgets.QHBoxLayout()
+        save_button = QtWidgets.QPushButton("Save setup")
+        save_button.setCursor(QtCore.Qt.PointingHandCursor)
+        load_button = QtWidgets.QPushButton("Load preset")
+        load_button.setCursor(QtCore.Qt.PointingHandCursor)
+        presets_row.addWidget(save_button)
+        presets_row.addWidget(load_button)
+        presets_row.addStretch()
+        layout.addLayout(presets_row)
         layout.addStretch()
 
         return card
@@ -244,12 +270,27 @@ class CameraPanel(QtWidgets.QWidget):
         return slider
 
     @staticmethod
-    def _build_toggle(label: str) -> QtWidgets.QPushButton:
-        toggle = QtWidgets.QPushButton(label)
-        toggle.setCheckable(True)
+    def _build_toggle(label_on: str, label_off: str) -> QtWidgets.QCheckBox:
+        toggle = QtWidgets.QCheckBox(label_on)
+        toggle.setObjectName("ToggleSwitch")
         toggle.setCursor(QtCore.Qt.PointingHandCursor)
         toggle.setChecked(True)
+        toggle.setProperty("label_on", label_on)
+        toggle.setProperty("label_off", label_off)
         return toggle
+
+    @staticmethod
+    def _update_toggle_label(toggle: QtWidgets.QCheckBox, label_on: str, label_off: str) -> None:
+        toggle.setText(label_on if toggle.isChecked() else label_off)
+
+    def _bind_auto_toggle(self, toggle: QtWidgets.QCheckBox, slider: QtWidgets.QSlider) -> None:
+        def _sync_state(checked: bool) -> None:
+            toggle.setText("Auto" if checked else "Manual")
+            slider.setEnabled(not checked)
+
+        toggle.setChecked(True)
+        _sync_state(toggle.isChecked())
+        toggle.toggled.connect(_sync_state)
 
     @staticmethod
     def _build_status_dot(is_online: bool) -> QtWidgets.QLabel:
@@ -260,27 +301,36 @@ class CameraPanel(QtWidgets.QWidget):
 
     def _build_status_legend(self) -> QtWidgets.QWidget:
         legend = QtWidgets.QWidget()
-        layout = QtWidgets.QHBoxLayout(legend)
+        layout = QtWidgets.QVBoxLayout(legend)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
+        layout.setSpacing(6)
 
         title = QtWidgets.QLabel("Status legend:")
         title.setObjectName("CardMeta")
 
+        online_row = QtWidgets.QWidget()
+        online_layout = QtWidgets.QHBoxLayout(online_row)
+        online_layout.setContentsMargins(0, 0, 0, 0)
+        online_layout.setSpacing(8)
         online_dot = self._build_status_dot(True)
         online_label = QtWidgets.QLabel("Connected")
         online_label.setObjectName("CardMeta")
+        online_layout.addWidget(online_dot)
+        online_layout.addWidget(online_label)
 
+        offline_row = QtWidgets.QWidget()
+        offline_layout = QtWidgets.QHBoxLayout(offline_row)
+        offline_layout.setContentsMargins(0, 0, 0, 0)
+        offline_layout.setSpacing(8)
         offline_dot = self._build_status_dot(False)
         offline_label = QtWidgets.QLabel("Disconnected")
         offline_label.setObjectName("CardMeta")
+        offline_layout.addWidget(offline_dot)
+        offline_layout.addWidget(offline_label)
 
         layout.addWidget(title)
-        layout.addWidget(online_dot)
-        layout.addWidget(online_label)
-        layout.addWidget(offline_dot)
-        layout.addWidget(offline_label)
-        layout.addStretch()
+        layout.addWidget(online_row)
+        layout.addWidget(offline_row)
         return legend
 
     def _select_camera(self, index: int) -> None:
