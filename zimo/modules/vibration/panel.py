@@ -1,34 +1,30 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
+from PySide6 import QtWidgets
 
 from zimo.core.api_client import ApiClient
-from zimo.core.module_base import BaseModule
+from zimo.core.module_base import ModuleBase
 
 
-class VibrationPanel(BaseModule):
-    def __init__(self, api_client: ApiClient) -> None:
+class VibrationModule(ModuleBase):
+    title = "Vibration"
+
+    def create_panel(self, api: ApiClient) -> QtWidgets.QWidget:
+        return VibrationPanel()
+
+
+class VibrationPanel(QtWidgets.QWidget):
+    def __init__(self) -> None:
         super().__init__()
-        self.api_client = api_client
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
 
-        header = QLabel("Vibration Module")
-        header.setObjectName("ModuleHeader")
+        title = QtWidgets.QLabel("Vibration")
+        title.setObjectName("PageTitle")
+        subtitle = QtWidgets.QLabel("Module placeholder – connect to vibration API endpoints.")
+        subtitle.setObjectName("PageSubtitle")
 
-        card = QFrame()
-        card.setObjectName("Card")
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(20, 20, 20, 20)
-        card_layout.setSpacing(8)
-
-        card_layout.addWidget(QLabel("Module placeholder"))
-
-        layout.addWidget(header)
-        layout.addWidget(card)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
         layout.addStretch()
-
-    def panel_name(self) -> str:
-        return "Vibration"

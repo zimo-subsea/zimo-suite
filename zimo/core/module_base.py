@@ -1,19 +1,15 @@
 from __future__ import annotations
 
-from typing import Protocol
+from abc import ABC, abstractmethod
 
-from PySide6.QtWidgets import QWidget
+from PySide6 import QtWidgets
 
-
-class ModulePanel(Protocol):
-    """Protocol for module panels."""
-
-    def panel_name(self) -> str:
-        ...
+from zimo.core.api_client import ApiClient
 
 
-class BaseModule(QWidget):
-    """Base widget for module panels."""
+class ModuleBase(ABC):
+    title: str
 
-    def panel_name(self) -> str:
-        return "Module"
+    @abstractmethod
+    def create_panel(self, api: ApiClient) -> QtWidgets.QWidget:
+        raise NotImplementedError

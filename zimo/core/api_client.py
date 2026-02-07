@@ -2,31 +2,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict
 
 
 @dataclass(frozen=True)
 class CameraStatus:
-    online: bool
+    is_streaming: bool
     temperature_c: float
-    bitrate_mbps: float
-    last_seen: datetime
+    last_frame: datetime
 
 
 class ApiClient:
-    """Mock API client that simulates backend responses."""
+    """Mock API client to emulate HTTP/WebSocket calls."""
 
-    def fetch_camera_status(self) -> CameraStatus:
+    def get_camera_status(self) -> CameraStatus:
         return CameraStatus(
-            online=True,
-            temperature_c=42.5,
-            bitrate_mbps=125.4,
-            last_seen=datetime.utcnow(),
+            is_streaming=False,
+            temperature_c=38.4,
+            last_frame=datetime.utcnow(),
         )
 
-    def fetch_camera_settings(self) -> Dict[str, int]:
-        return {
-            "exposure": 68,
-            "gain": 45,
-            "gamma": 55,
-        }
+    def get_devices_summary(self) -> dict[str, int]:
+        return {"online": 3, "offline": 1}

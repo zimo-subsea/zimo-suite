@@ -1,27 +1,27 @@
-from __future__ import annotations
-
-import sys
 from pathlib import Path
+import sys
 
-from PySide6.QtWidgets import QApplication
+from PySide6 import QtWidgets
 
-from zimo.app.shell import ZimoShell
+from zimo.app.shell import ZiMOShell
 
 
-def load_theme(app: QApplication) -> None:
+def load_theme(app: QtWidgets.QApplication) -> None:
     theme_path = Path(__file__).with_name("theme.qss")
     app.setStyleSheet(theme_path.read_text(encoding="utf-8"))
 
 
-def main() -> int:
-    app = QApplication(sys.argv)
-    app.setApplicationName("ZiMO")
+def main() -> None:
+    app = QtWidgets.QApplication(sys.argv)
+    app.setApplicationName("ZiMO Suite")
+    app.setOrganizationName("ZiMO Suite")
     load_theme(app)
 
-    window = ZimoShell()
+    window = ZiMOShell()
     window.show()
-    return app.exec()
+
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

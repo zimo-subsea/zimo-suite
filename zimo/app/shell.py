@@ -1,138 +1,138 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
+from pathlib import Path
+from typing import Iterable
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QMainWindow,
-    QStackedWidget,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6 import QtCore, QtWidgets, QtSvgWidgets
 
 from zimo.core.api_client import ApiClient
-from zimo.modules.camera.panel import CameraPanel
-from zimo.modules.vibration.panel import VibrationPanel
+from zimo.core.module_base import ModuleBase
+from zimo.modules.camera.panel import CameraModule
+from zimo.modules.vibration.panel import VibrationModule
 
 
 @dataclass(frozen=True)
 class ModuleEntry:
-    key: str
-    label: str
-    widget: QWidget
+    module: ModuleBase
+    button: QtWidgets.QPushButton
+    widget: QtWidgets.QWidget
+    status_dot: QtWidgets.QLabel
 
 
-class ZimoShell(QMainWindow):
+class ZiMOShell(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("ZiMO Control")
-        self.resize(1200, 800)
+        self.setWindowTitle("ZiMO Suite")
+        self.resize(1280, 800)
 
-        self.api_client = ApiClient()
-        self.modules: List[ModuleEntry] = []
-        self.module_lookup: Dict[str, QWidget] = {}
+        self._api = ApiClient()
+        self._modules: list[ModuleEntry] = []
+        self._module_status = {
+            "Vision Processing Unit": True,
+            "Vibration": False,
+        }
 
-        container = QWidget()
-        container.setObjectName("AppContainer")
-        self.setCentralWidget(container)
+        root = QtWidgets.QWidget()
+        root_layout = QtWidgets.QVBoxLayout(root)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(16)
+        self._topbar = self._build_topbar()
+        root_layout.addWidget(self._topbar)
 
-        self.sidebar = self._build_sidebar()
-        self.main_area = self._build_main_area()
+        content = QtWidgets.QWidget()
+        content_layout = QtWidgets.QHBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
 
-        layout.addWidget(self.sidebar)
-        layout.addWidget(self.main_area, 1)
+        self._sidebar = self._build_sidebar()
+        content_layout.addWidget(self._sidebar)
 
-        self._register_modules()
+        self._stack = QtWidgets.QStackedWidget()
+        content_layout.addWidget(self._stack, 1)
 
-    def _build_sidebar(self) -> QFrame:
-        sidebar = QFrame()
+        root_layout.addWidget(content, 1)
+
+        self.setCentralWidget(root)
+
+        self._load_modules([CameraModule(), VibrationModule()])
+
+    def _build_topbar(self) -> QtWidgets.QWidget:
+        bar = QtWidgets.QWidget()
+        bar.setObjectName("TopBar")
+        layout = QtWidgets.QHBoxLayout(bar)
+        layout.setContentsMargins(24, 12, 24, 12)
+
+        logo_path = Path(__file__).with_name("header_logo.svg")
+        logo = QtSvgWidgets.QSvgWidget(str(logo_path))
+        logo.setObjectName("Logo")
+        logo.setFixedSize(80, 28)
+        status = QtWidgets.QLabel("Online · 3 devices")
+        status.setObjectName("Status")
+        status.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+
+        layout.addWidget(logo)
+        layout.addStretch()
+        layout.addWidget(status)
+        return bar
+
+    def _build_sidebar(self) -> QtWidgets.QWidget:
+        sidebar = QtWidgets.QWidget()
         sidebar.setObjectName("Sidebar")
-        sidebar.setFixedWidth(240)
-
-        layout = QVBoxLayout(sidebar)
+        layout = QtWidgets.QVBoxLayout(sidebar)
         layout.setContentsMargins(16, 24, 16, 24)
-        layout.setSpacing(16)
+        layout.setSpacing(12)
 
-        brand = QLabel("ZiMO")
-        brand.setObjectName("SidebarBrand")
+        title = QtWidgets.QLabel("Modules")
+        title.setObjectName("SidebarTitle")
+        layout.addWidget(title)
 
-        subtitle = QLabel("Sensor Control")
-        subtitle.setObjectName("SidebarSubtitle")
-
-        self.module_list = QListWidget()
-        self.module_list.setObjectName("ModuleList")
-        self.module_list.setSpacing(4)
-        self.module_list.currentRowChanged.connect(self._on_module_change)
-
-        layout.addWidget(brand)
-        layout.addWidget(subtitle)
-        layout.addSpacing(12)
-        layout.addWidget(self.module_list, 1)
-
+        layout.addStretch()
         return sidebar
 
-    def _build_main_area(self) -> QWidget:
-        wrapper = QWidget()
-        wrapper_layout = QVBoxLayout(wrapper)
-        wrapper_layout.setContentsMargins(0, 0, 0, 0)
-        wrapper_layout.setSpacing(16)
-
-        topbar = QFrame()
-        topbar.setObjectName("Topbar")
-        topbar_layout = QHBoxLayout(topbar)
-        topbar_layout.setContentsMargins(20, 12, 20, 12)
-        topbar_layout.setSpacing(12)
-
-        title = QLabel("Operations Dashboard")
-        title.setObjectName("TopbarTitle")
-
-        status = QLabel("API: mock://localhost")
-        status.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        status.setObjectName("TopbarStatus")
-
-        topbar_layout.addWidget(title)
-        topbar_layout.addStretch()
-        topbar_layout.addWidget(status)
-
-        self.stack = QStackedWidget()
-        self.stack.setObjectName("ModuleStack")
-
-        wrapper_layout.addWidget(topbar)
-        wrapper_layout.addWidget(self.stack, 1)
-
-        return wrapper
-
-    def _register_modules(self) -> None:
-        camera_panel = CameraPanel(self.api_client)
-        vibration_panel = VibrationPanel(self.api_client)
-
-        self._add_module("camera", "Camera", camera_panel)
-        self._add_module("vibration", "Vibration", vibration_panel)
-
-        if self.module_list.count() > 0:
-            self.module_list.setCurrentRow(0)
-
-    def _add_module(self, key: str, label: str, widget: QWidget) -> None:
-        entry = ModuleEntry(key=key, label=label, widget=widget)
-        self.modules.append(entry)
-        self.module_lookup[key] = widget
-
-        item = QListWidgetItem(label)
-        item.setData(Qt.UserRole, key)
-        self.module_list.addItem(item)
-        self.stack.addWidget(widget)
-
-    def _on_module_change(self, index: int) -> None:
-        if index < 0:
+    def _load_modules(self, modules: Iterable[ModuleBase]) -> None:
+        sidebar_layout = self._sidebar.layout()
+        if not isinstance(sidebar_layout, QtWidgets.QVBoxLayout):
             return
-        self.stack.setCurrentIndex(index)
+
+        for module in modules:
+            panel = module.create_panel(self._api)
+            self._stack.addWidget(panel)
+
+            row = QtWidgets.QWidget()
+            row_layout = QtWidgets.QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(8)
+
+            status_dot = self._build_status_dot(self._module_status.get(module.title, False))
+            row_layout.addWidget(status_dot)
+
+            button = QtWidgets.QPushButton(module.title)
+            button.setCheckable(True)
+            button.setCursor(QtCore.Qt.PointingHandCursor)
+            button.clicked.connect(lambda checked, m=module: self._select_module(m))
+            row_layout.addWidget(button, 1)
+
+            sidebar_layout.insertWidget(sidebar_layout.count() - 2, row)
+
+            self._modules.append(
+                ModuleEntry(module=module, button=button, widget=panel, status_dot=status_dot)
+            )
+
+        if self._modules:
+            self._select_module(self._modules[0].module)
+
+    def _select_module(self, module: ModuleBase) -> None:
+        for entry in self._modules:
+            is_active = entry.module is module
+            entry.button.setChecked(is_active)
+            if is_active:
+                self._stack.setCurrentWidget(entry.widget)
+
+    @staticmethod
+    def _build_status_dot(is_online: bool) -> QtWidgets.QLabel:
+        dot = QtWidgets.QLabel("●")
+        dot.setObjectName("StatusDot")
+        dot.setProperty("severity", "success" if is_online else "danger")
+        return dot
