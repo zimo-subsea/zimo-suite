@@ -64,7 +64,7 @@ class ZiMOShell(QtWidgets.QMainWindow):
         layout = QtWidgets.QHBoxLayout(bar)
         layout.setContentsMargins(24, 12, 24, 12)
 
-        logo_path = Path(__file__).with_name("logo-placeholder.svg")
+        logo_path = Path(__file__).with_name("header_logo.svg")
         logo = QtSvgWidgets.QSvgWidget(str(logo_path))
         logo.setObjectName("Logo")
         logo.setFixedSize(80, 28)
