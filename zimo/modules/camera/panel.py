@@ -36,8 +36,6 @@ class CameraPanel(QtWidgets.QWidget):
 
         layout.addWidget(header)
         layout.addWidget(subtitle)
-        layout.addWidget(self._build_status_legend())
-
         body_layout = QtWidgets.QHBoxLayout()
         body_layout.setSpacing(16)
 
@@ -49,6 +47,8 @@ class CameraPanel(QtWidgets.QWidget):
 
         left_column.addWidget(selection_card, 1)
         left_column.addWidget(status_card, 1)
+        left_column.addStretch()
+        left_column.addWidget(self._build_status_legend())
 
         settings_card = self._build_settings_card()
 
@@ -200,16 +200,22 @@ class CameraPanel(QtWidgets.QWidget):
         form.addWidget(wb_slider, row, 1)
         row += 1
 
+        fps_selector = QtWidgets.QComboBox()
+        fps_selector.addItems(["24 FPS", "30 FPS", "60 FPS", "90 FPS", "120 FPS"])
+        form.addWidget(QtWidgets.QLabel("FPS"), row, 0)
+        form.addWidget(fps_selector, row, 1)
+        row += 1
+
+        resolution_selector = QtWidgets.QComboBox()
+        resolution_selector.addItems(["1280 × 720", "1920 × 1080", "2560 × 1440", "3840 × 2160 (4K)"])
+        form.addWidget(QtWidgets.QLabel("Resolution"), row, 0)
+        form.addWidget(resolution_selector, row, 1)
+        row += 1
+
         reset_button = QtWidgets.QPushButton("Reset to defaults")
         reset_button.setCursor(QtCore.Qt.PointingHandCursor)
         form.addWidget(QtWidgets.QLabel("Defaults"), row, 0)
         form.addWidget(reset_button, row, 1)
-        row += 1
-
-        advanced_button = QtWidgets.QPushButton("Advanced settings")
-        advanced_button.setCursor(QtCore.Qt.PointingHandCursor)
-        form.addWidget(QtWidgets.QLabel("Advanced"), row, 0)
-        form.addWidget(advanced_button, row, 1)
         row += 1
 
         aruco_toggle = self._build_toggle("On")
@@ -232,6 +238,14 @@ class CameraPanel(QtWidgets.QWidget):
         row += 1
 
         layout.addLayout(form)
+
+        gear_row = QtWidgets.QHBoxLayout()
+        gear_row.addStretch()
+        advanced_button = QtWidgets.QPushButton("⚙")
+        advanced_button.setObjectName("GearButton")
+        advanced_button.setCursor(QtCore.Qt.PointingHandCursor)
+        gear_row.addWidget(advanced_button)
+        layout.addLayout(gear_row)
         layout.addStretch()
 
         return card
@@ -244,9 +258,9 @@ class CameraPanel(QtWidgets.QWidget):
         return slider
 
     @staticmethod
-    def _build_toggle(label: str) -> QtWidgets.QPushButton:
-        toggle = QtWidgets.QPushButton(label)
-        toggle.setCheckable(True)
+    def _build_toggle(label: str) -> QtWidgets.QCheckBox:
+        toggle = QtWidgets.QCheckBox(label)
+        toggle.setObjectName("ToggleSwitch")
         toggle.setCursor(QtCore.Qt.PointingHandCursor)
         toggle.setChecked(True)
         return toggle
@@ -260,27 +274,36 @@ class CameraPanel(QtWidgets.QWidget):
 
     def _build_status_legend(self) -> QtWidgets.QWidget:
         legend = QtWidgets.QWidget()
-        layout = QtWidgets.QHBoxLayout(legend)
+        layout = QtWidgets.QVBoxLayout(legend)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
+        layout.setSpacing(6)
 
         title = QtWidgets.QLabel("Status legend:")
         title.setObjectName("CardMeta")
 
+        online_row = QtWidgets.QWidget()
+        online_layout = QtWidgets.QHBoxLayout(online_row)
+        online_layout.setContentsMargins(0, 0, 0, 0)
+        online_layout.setSpacing(8)
         online_dot = self._build_status_dot(True)
         online_label = QtWidgets.QLabel("Connected")
         online_label.setObjectName("CardMeta")
+        online_layout.addWidget(online_dot)
+        online_layout.addWidget(online_label)
 
+        offline_row = QtWidgets.QWidget()
+        offline_layout = QtWidgets.QHBoxLayout(offline_row)
+        offline_layout.setContentsMargins(0, 0, 0, 0)
+        offline_layout.setSpacing(8)
         offline_dot = self._build_status_dot(False)
         offline_label = QtWidgets.QLabel("Disconnected")
         offline_label.setObjectName("CardMeta")
+        offline_layout.addWidget(offline_dot)
+        offline_layout.addWidget(offline_label)
 
         layout.addWidget(title)
-        layout.addWidget(online_dot)
-        layout.addWidget(online_label)
-        layout.addWidget(offline_dot)
-        layout.addWidget(offline_label)
-        layout.addStretch()
+        layout.addWidget(online_row)
+        layout.addWidget(offline_row)
         return legend
 
     def _select_camera(self, index: int) -> None:
