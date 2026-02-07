@@ -18,10 +18,13 @@ class CameraPanel(QtWidgets.QWidget):
         super().__init__()
         self._api = api
         self._camera_names = [f"Camera {index}" for index in range(1, 9)]
+        self._camera_connected = [True, True, False, True, False, True, True, False]
         self._camera_buttons: list[QtWidgets.QPushButton] = []
         self._current_camera_index = 0
         self._camera_name_input: QtWidgets.QLineEdit | None = None
         self._current_camera_label: QtWidgets.QLabel | None = None
+        self._camera_row_labels: list[QtWidgets.QLabel] = []
+        self._camera_pen_labels: list[QtWidgets.QLabel] = []
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -34,6 +37,7 @@ class CameraPanel(QtWidgets.QWidget):
 
         layout.addWidget(header)
         layout.addWidget(subtitle)
+        layout.addWidget(self._build_status_legend())
 
         body_layout = QtWidgets.QHBoxLayout()
         body_layout.setSpacing(16)
@@ -75,6 +79,14 @@ class CameraPanel(QtWidgets.QWidget):
         button_group.setExclusive(True)
 
         for index, name in enumerate(self._camera_names):
+            row = QtWidgets.QWidget()
+            row_layout = QtWidgets.QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(8)
+
+            status_dot = self._build_status_dot(self._camera_connected[index])
+            row_layout.addWidget(status_dot)
+
             button = QtWidgets.QPushButton(name)
             button.setCheckable(True)
             button.setCursor(QtCore.Qt.PointingHandCursor)
@@ -82,9 +94,33 @@ class CameraPanel(QtWidgets.QWidget):
             if index == self._current_camera_index:
                 button.setChecked(True)
             button_group.addButton(button)
-            layout.addWidget(button)
-            self._camera_buttons.append(button)
+            row_layout.addWidget(button, 1)
 
+            pen = QtWidgets.QLabel("✎")
+            pen.setObjectName("SelectionPen")
+            pen.setVisible(index == self._current_camera_index)
+            row_layout.addWidget(pen)
+
+            layout.addWidget(row)
+            self._camera_buttons.append(button)
+            self._camera_row_labels.append(status_dot)
+            self._camera_pen_labels.append(pen)
+
+        rename_input = QtWidgets.QLineEdit()
+        rename_input.setPlaceholderText("Rename selected camera")
+        rename_input.setText(self._camera_names[self._current_camera_index])
+        rename_input.editingFinished.connect(self._apply_camera_rename)
+        self._camera_name_input = rename_input
+
+        rename_button = QtWidgets.QPushButton("Rename")
+        rename_button.setCursor(QtCore.Qt.PointingHandCursor)
+        rename_button.clicked.connect(self._apply_camera_rename)
+
+        rename_layout = QtWidgets.QHBoxLayout()
+        rename_layout.addWidget(rename_input, 1)
+        rename_layout.addWidget(rename_button)
+
+        layout.addLayout(rename_layout)
         layout.addStretch()
         return card
 
@@ -138,7 +174,7 @@ class CameraPanel(QtWidgets.QWidget):
 
         row = 0
 
-        enable_toggle = self._build_toggle("Enabled")
+        enable_toggle = self._build_toggle("On")
         form.addWidget(QtWidgets.QLabel("Enable / Disable camera"), row, 0)
         form.addWidget(enable_toggle, row, 1)
         row += 1
@@ -179,15 +215,9 @@ class CameraPanel(QtWidgets.QWidget):
         form.addWidget(reset_button, row, 1)
         row += 1
 
-        aruco_toggle = self._build_toggle("Enabled")
+        aruco_toggle = self._build_toggle("On")
         form.addWidget(QtWidgets.QLabel("Enable ArUco"), row, 0)
         form.addWidget(aruco_toggle, row, 1)
-        row += 1
-
-        detect_once = QtWidgets.QPushButton("Detect once")
-        detect_once.setCursor(QtCore.Qt.PointingHandCursor)
-        form.addWidget(QtWidgets.QLabel("Detect once"), row, 0)
-        form.addWidget(detect_once, row, 1)
         row += 1
 
         aruco_dict = QtWidgets.QComboBox()
@@ -203,23 +233,6 @@ class CameraPanel(QtWidgets.QWidget):
         form.addWidget(QtWidgets.QLabel("ArUco dictionary"), row, 0)
         form.addWidget(aruco_dict, row, 1)
         row += 1
-
-        rename_input = QtWidgets.QLineEdit()
-        rename_input.setPlaceholderText("Enter new camera name")
-        rename_input.setText(self._camera_names[self._current_camera_index])
-        rename_input.editingFinished.connect(self._apply_camera_rename)
-        self._camera_name_input = rename_input
-
-        rename_button = QtWidgets.QPushButton("Rename camera")
-        rename_button.setCursor(QtCore.Qt.PointingHandCursor)
-        rename_button.clicked.connect(self._apply_camera_rename)
-
-        rename_layout = QtWidgets.QHBoxLayout()
-        rename_layout.addWidget(rename_input, 1)
-        rename_layout.addWidget(rename_button)
-
-        form.addWidget(QtWidgets.QLabel("Camera name"), row, 0)
-        form.addLayout(rename_layout, row, 1)
 
         layout.addLayout(form)
         layout.addStretch()
@@ -241,6 +254,38 @@ class CameraPanel(QtWidgets.QWidget):
         toggle.setChecked(True)
         return toggle
 
+    @staticmethod
+    def _build_status_dot(is_online: bool) -> QtWidgets.QLabel:
+        dot = QtWidgets.QLabel("●")
+        dot.setObjectName("StatusDot")
+        dot.setProperty("severity", "success" if is_online else "danger")
+        return dot
+
+    def _build_status_legend(self) -> QtWidgets.QWidget:
+        legend = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(legend)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+
+        title = QtWidgets.QLabel("Status legend:")
+        title.setObjectName("CardMeta")
+
+        online_dot = self._build_status_dot(True)
+        online_label = QtWidgets.QLabel("Connected")
+        online_label.setObjectName("CardMeta")
+
+        offline_dot = self._build_status_dot(False)
+        offline_label = QtWidgets.QLabel("Disconnected")
+        offline_label.setObjectName("CardMeta")
+
+        layout.addWidget(title)
+        layout.addWidget(online_dot)
+        layout.addWidget(online_label)
+        layout.addWidget(offline_dot)
+        layout.addWidget(offline_label)
+        layout.addStretch()
+        return legend
+
     def _select_camera(self, index: int) -> None:
         self._current_camera_index = index
         if self._current_camera_label is not None:
@@ -249,6 +294,8 @@ class CameraPanel(QtWidgets.QWidget):
             self._camera_name_input.setText(self._camera_names[index])
         for button_index, button in enumerate(self._camera_buttons):
             button.setChecked(button_index == index)
+        for pen_index, pen in enumerate(self._camera_pen_labels):
+            pen.setVisible(pen_index == index)
 
     def _apply_camera_rename(self) -> None:
         if self._camera_name_input is None:

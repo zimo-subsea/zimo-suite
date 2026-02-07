@@ -16,6 +16,7 @@ class ModuleEntry:
     module: ModuleBase
     button: QtWidgets.QPushButton
     widget: QtWidgets.QWidget
+    status_dot: QtWidgets.QLabel
 
 
 class ZiMOShell(QtWidgets.QMainWindow):
@@ -26,6 +27,10 @@ class ZiMOShell(QtWidgets.QMainWindow):
 
         self._api = ApiClient()
         self._modules: list[ModuleEntry] = []
+        self._module_status = {
+            "Camera": True,
+            "Vibration": False,
+        }
 
         root = QtWidgets.QWidget()
         root_layout = QtWidgets.QVBoxLayout(root)
@@ -80,6 +85,7 @@ class ZiMOShell(QtWidgets.QMainWindow):
         title.setObjectName("SidebarTitle")
         layout.addWidget(title)
 
+        layout.addWidget(self._build_status_legend())
         layout.addStretch()
         return sidebar
 
@@ -92,14 +98,25 @@ class ZiMOShell(QtWidgets.QMainWindow):
             panel = module.create_panel(self._api)
             self._stack.addWidget(panel)
 
+            row = QtWidgets.QWidget()
+            row_layout = QtWidgets.QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(8)
+
+            status_dot = self._build_status_dot(self._module_status.get(module.title, False))
+            row_layout.addWidget(status_dot)
+
             button = QtWidgets.QPushButton(module.title)
             button.setCheckable(True)
             button.setCursor(QtCore.Qt.PointingHandCursor)
             button.clicked.connect(lambda checked, m=module: self._select_module(m))
+            row_layout.addWidget(button, 1)
 
-            sidebar_layout.insertWidget(sidebar_layout.count() - 1, button)
+            sidebar_layout.insertWidget(sidebar_layout.count() - 2, row)
 
-            self._modules.append(ModuleEntry(module=module, button=button, widget=panel))
+            self._modules.append(
+                ModuleEntry(module=module, button=button, widget=panel, status_dot=status_dot)
+            )
 
         if self._modules:
             self._select_module(self._modules[0].module)
@@ -110,3 +127,34 @@ class ZiMOShell(QtWidgets.QMainWindow):
             entry.button.setChecked(is_active)
             if is_active:
                 self._stack.setCurrentWidget(entry.widget)
+
+    @staticmethod
+    def _build_status_dot(is_online: bool) -> QtWidgets.QLabel:
+        dot = QtWidgets.QLabel("●")
+        dot.setObjectName("StatusDot")
+        dot.setProperty("severity", "success" if is_online else "danger")
+        return dot
+
+    def _build_status_legend(self) -> QtWidgets.QWidget:
+        legend = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(legend)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        title = QtWidgets.QLabel("Status legend")
+        title.setObjectName("CardMeta")
+
+        online_dot = self._build_status_dot(True)
+        online_label = QtWidgets.QLabel("Online")
+        online_label.setObjectName("CardMeta")
+
+        offline_dot = self._build_status_dot(False)
+        offline_label = QtWidgets.QLabel("Offline")
+        offline_label.setObjectName("CardMeta")
+
+        layout.addWidget(title)
+        layout.addWidget(online_dot)
+        layout.addWidget(online_label)
+        layout.addWidget(offline_dot)
+        layout.addWidget(offline_label)
+        return legend
