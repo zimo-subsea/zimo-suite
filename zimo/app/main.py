@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
 
-from PySide6 import QtWidgets
+from PySide6 import QtGui, QtWidgets
 
 from zimo.app.shell import ZiMOShell
 
@@ -15,6 +15,8 @@ def main() -> None:
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName("ZiMO Suite")
     app.setOrganizationName("ZiMO Suite")
+    icon_path = Path(__file__).with_name("logo.ico")
+    app.setWindowIcon(QtGui.QIcon(str(icon_path)))
     load_theme(app)
 
     window = ZiMOShell()
