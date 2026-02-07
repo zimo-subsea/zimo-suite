@@ -85,7 +85,6 @@ class ZiMOShell(QtWidgets.QMainWindow):
         title.setObjectName("SidebarTitle")
         layout.addWidget(title)
 
-        layout.addWidget(self._build_status_legend())
         layout.addStretch()
         return sidebar
 
@@ -134,27 +133,3 @@ class ZiMOShell(QtWidgets.QMainWindow):
         dot.setObjectName("StatusDot")
         dot.setProperty("severity", "success" if is_online else "danger")
         return dot
-
-    def _build_status_legend(self) -> QtWidgets.QWidget:
-        legend = QtWidgets.QWidget()
-        layout = QtWidgets.QHBoxLayout(legend)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-
-        title = QtWidgets.QLabel("Status legend")
-        title.setObjectName("CardMeta")
-
-        online_dot = self._build_status_dot(True)
-        online_label = QtWidgets.QLabel("Online")
-        online_label.setObjectName("CardMeta")
-
-        offline_dot = self._build_status_dot(False)
-        offline_label = QtWidgets.QLabel("Offline")
-        offline_label.setObjectName("CardMeta")
-
-        layout.addWidget(title)
-        layout.addWidget(online_dot)
-        layout.addWidget(online_label)
-        layout.addWidget(offline_dot)
-        layout.addWidget(offline_label)
-        return legend

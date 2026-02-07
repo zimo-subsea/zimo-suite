@@ -104,6 +104,29 @@ QPushButton:checked {
     color: #a5f2c4;
 }
 
+#StatusDot {
+    font-size: 12px;
+}
+
+#StatusDot[severity="success"] {
+    color: #1aa05c;
+}
+
+#StatusDot[severity="danger"] {
+    color: #e11b22;
+}
+
+QPushButton#SelectionPen {
+    background-color: transparent;
+    border: none;
+    padding: 4px 6px;
+    font-size: 14px;
+}
+
+QPushButton#SelectionPen:hover {
+    color: #ffffff;
+}
+
 QSlider::groove:horizontal {
     height: 6px;
     border-radius: 3px;

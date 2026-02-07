@@ -20,11 +20,10 @@ class CameraPanel(QtWidgets.QWidget):
         self._camera_names = [f"Camera {index}" for index in range(1, 9)]
         self._camera_connected = [True, True, False, True, False, True, True, False]
         self._camera_buttons: list[QtWidgets.QPushButton] = []
+        self._camera_name_edits: list[QtWidgets.QLineEdit] = []
         self._current_camera_index = 0
-        self._camera_name_input: QtWidgets.QLineEdit | None = None
         self._current_camera_label: QtWidgets.QLabel | None = None
-        self._camera_row_labels: list[QtWidgets.QLabel] = []
-        self._camera_pen_labels: list[QtWidgets.QLabel] = []
+        self._camera_pen_buttons: list[QtWidgets.QPushButton] = []
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -96,31 +95,23 @@ class CameraPanel(QtWidgets.QWidget):
             button_group.addButton(button)
             row_layout.addWidget(button, 1)
 
-            pen = QtWidgets.QLabel("✎")
+            edit = QtWidgets.QLineEdit(name)
+            edit.setPlaceholderText("Camera name")
+            edit.setVisible(False)
+            edit.editingFinished.connect(lambda i=index: self._apply_camera_rename(i))
+            row_layout.addWidget(edit, 1)
+
+            pen = QtWidgets.QPushButton("✎")
             pen.setObjectName("SelectionPen")
+            pen.setCursor(QtCore.Qt.PointingHandCursor)
             pen.setVisible(index == self._current_camera_index)
+            pen.clicked.connect(lambda checked=False, i=index: self._enable_name_edit(i))
             row_layout.addWidget(pen)
 
             layout.addWidget(row)
             self._camera_buttons.append(button)
-            self._camera_row_labels.append(status_dot)
-            self._camera_pen_labels.append(pen)
-
-        rename_input = QtWidgets.QLineEdit()
-        rename_input.setPlaceholderText("Rename selected camera")
-        rename_input.setText(self._camera_names[self._current_camera_index])
-        rename_input.editingFinished.connect(self._apply_camera_rename)
-        self._camera_name_input = rename_input
-
-        rename_button = QtWidgets.QPushButton("Rename")
-        rename_button.setCursor(QtCore.Qt.PointingHandCursor)
-        rename_button.clicked.connect(self._apply_camera_rename)
-
-        rename_layout = QtWidgets.QHBoxLayout()
-        rename_layout.addWidget(rename_input, 1)
-        rename_layout.addWidget(rename_button)
-
-        layout.addLayout(rename_layout)
+            self._camera_name_edits.append(edit)
+            self._camera_pen_buttons.append(pen)
         layout.addStretch()
         return card
 
@@ -290,25 +281,35 @@ class CameraPanel(QtWidgets.QWidget):
         self._current_camera_index = index
         if self._current_camera_label is not None:
             self._current_camera_label.setText(self._camera_names[index])
-        if self._camera_name_input is not None:
-            self._camera_name_input.setText(self._camera_names[index])
         for button_index, button in enumerate(self._camera_buttons):
             button.setChecked(button_index == index)
-        for pen_index, pen in enumerate(self._camera_pen_labels):
+        for pen_index, pen in enumerate(self._camera_pen_buttons):
             pen.setVisible(pen_index == index)
+        for edit_index, edit in enumerate(self._camera_name_edits):
+            edit.setText(self._camera_names[edit_index])
+            edit.setVisible(False)
+            self._camera_buttons[edit_index].setVisible(True)
 
-    def _apply_camera_rename(self) -> None:
-        if self._camera_name_input is None:
-            return
-        new_name = self._camera_name_input.text().strip()
+    def _enable_name_edit(self, index: int) -> None:
+        edit = self._camera_name_edits[index]
+        edit.setVisible(True)
+        self._camera_buttons[index].setVisible(False)
+        edit.setFocus()
+        edit.selectAll()
+
+    def _apply_camera_rename(self, index: int) -> None:
+        edit = self._camera_name_edits[index]
+        new_name = edit.text().strip()
         if not new_name:
-            self._camera_name_input.setText(self._camera_names[self._current_camera_index])
-            return
-        self._camera_names[self._current_camera_index] = new_name
-        if self._current_camera_label is not None:
+            edit.setText(self._camera_names[index])
+            new_name = self._camera_names[index]
+        self._camera_names[index] = new_name
+        self._camera_buttons[index].setText(new_name)
+        edit.setText(new_name)
+        edit.setVisible(False)
+        self._camera_buttons[index].setVisible(True)
+        if self._current_camera_label is not None and index == self._current_camera_index:
             self._current_camera_label.setText(new_name)
-        if self._camera_buttons:
-            self._camera_buttons[self._current_camera_index].setText(new_name)
 
 
 if __name__ == "__main__":
