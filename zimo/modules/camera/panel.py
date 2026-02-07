@@ -157,48 +157,21 @@ class CameraPanel(QtWidgets.QWidget):
         current_label = QtWidgets.QLabel(self._camera_names[self._current_camera_index])
         current_label.setObjectName("CardValue")
         self._current_camera_label = current_label
-        layout.addWidget(current_label)
+        header_row = QtWidgets.QHBoxLayout()
+        header_row.addWidget(current_label)
+        header_row.addStretch()
+        enable_toggle = self._build_toggle("On", "Off")
+        enable_toggle.toggled.connect(lambda checked: self._update_toggle_label(enable_toggle, "On", "Off"))
+        self._update_toggle_label(enable_toggle, "On", "Off")
+        header_row.addWidget(enable_toggle)
+        layout.addLayout(header_row)
 
         form = QtWidgets.QGridLayout()
         form.setHorizontalSpacing(12)
         form.setVerticalSpacing(10)
+        form.setColumnStretch(1, 1)
 
         row = 0
-
-        enable_toggle = self._build_toggle("On")
-        form.addWidget(QtWidgets.QLabel("Enable / Disable camera"), row, 0)
-        form.addWidget(enable_toggle, row, 1)
-        row += 1
-
-        auto_exposure_toggle = self._build_toggle("Auto")
-        form.addWidget(QtWidgets.QLabel("Auto Exposure"), row, 0)
-        form.addWidget(auto_exposure_toggle, row, 1)
-        row += 1
-
-        auto_gain_toggle = self._build_toggle("Auto")
-        form.addWidget(QtWidgets.QLabel("Auto Gain"), row, 0)
-        form.addWidget(auto_gain_toggle, row, 1)
-        row += 1
-
-        auto_wb_toggle = self._build_toggle("Auto")
-        form.addWidget(QtWidgets.QLabel("Auto WB"), row, 0)
-        form.addWidget(auto_wb_toggle, row, 1)
-        row += 1
-
-        exposure_slider = self._build_slider()
-        form.addWidget(QtWidgets.QLabel("Exposure"), row, 0)
-        form.addWidget(exposure_slider, row, 1)
-        row += 1
-
-        gain_slider = self._build_slider()
-        form.addWidget(QtWidgets.QLabel("Gain"), row, 0)
-        form.addWidget(gain_slider, row, 1)
-        row += 1
-
-        wb_slider = self._build_slider()
-        form.addWidget(QtWidgets.QLabel("White balance"), row, 0)
-        form.addWidget(wb_slider, row, 1)
-        row += 1
 
         fps_selector = QtWidgets.QComboBox()
         fps_selector.addItems(["24 FPS", "30 FPS", "60 FPS", "90 FPS", "120 FPS"])
@@ -212,13 +185,39 @@ class CameraPanel(QtWidgets.QWidget):
         form.addWidget(resolution_selector, row, 1)
         row += 1
 
+        exposure_slider = self._build_slider()
+        auto_exposure_toggle = self._build_toggle("Auto", "Manual")
+        self._bind_auto_toggle(auto_exposure_toggle, exposure_slider)
+        form.addWidget(QtWidgets.QLabel("Exposure"), row, 0)
+        form.addWidget(exposure_slider, row, 1)
+        form.addWidget(auto_exposure_toggle, row, 2)
+        row += 1
+
+        gain_slider = self._build_slider()
+        auto_gain_toggle = self._build_toggle("Auto", "Manual")
+        self._bind_auto_toggle(auto_gain_toggle, gain_slider)
+        form.addWidget(QtWidgets.QLabel("Gain"), row, 0)
+        form.addWidget(gain_slider, row, 1)
+        form.addWidget(auto_gain_toggle, row, 2)
+        row += 1
+
+        wb_slider = self._build_slider()
+        auto_wb_toggle = self._build_toggle("Auto", "Manual")
+        self._bind_auto_toggle(auto_wb_toggle, wb_slider)
+        form.addWidget(QtWidgets.QLabel("White balance"), row, 0)
+        form.addWidget(wb_slider, row, 1)
+        form.addWidget(auto_wb_toggle, row, 2)
+        row += 1
+
         reset_button = QtWidgets.QPushButton("Reset to defaults")
         reset_button.setCursor(QtCore.Qt.PointingHandCursor)
         form.addWidget(QtWidgets.QLabel("Defaults"), row, 0)
         form.addWidget(reset_button, row, 1)
         row += 1
 
-        aruco_toggle = self._build_toggle("On")
+        aruco_toggle = self._build_toggle("On", "Off")
+        aruco_toggle.toggled.connect(lambda checked: self._update_toggle_label(aruco_toggle, "On", "Off"))
+        self._update_toggle_label(aruco_toggle, "On", "Off")
         form.addWidget(QtWidgets.QLabel("Enable ArUco"), row, 0)
         form.addWidget(aruco_toggle, row, 1)
         row += 1
@@ -240,12 +239,25 @@ class CameraPanel(QtWidgets.QWidget):
         layout.addLayout(form)
 
         gear_row = QtWidgets.QHBoxLayout()
-        gear_row.addStretch()
         advanced_button = QtWidgets.QPushButton("⚙")
         advanced_button.setObjectName("GearButton")
         advanced_button.setCursor(QtCore.Qt.PointingHandCursor)
+        advanced_label = QtWidgets.QLabel("Advanced settings")
+        advanced_label.setObjectName("CardMeta")
+        gear_row.addStretch()
+        gear_row.addWidget(advanced_label)
         gear_row.addWidget(advanced_button)
         layout.addLayout(gear_row)
+
+        presets_row = QtWidgets.QHBoxLayout()
+        save_button = QtWidgets.QPushButton("Save setup")
+        save_button.setCursor(QtCore.Qt.PointingHandCursor)
+        load_button = QtWidgets.QPushButton("Load preset")
+        load_button.setCursor(QtCore.Qt.PointingHandCursor)
+        presets_row.addWidget(save_button)
+        presets_row.addWidget(load_button)
+        presets_row.addStretch()
+        layout.addLayout(presets_row)
         layout.addStretch()
 
         return card
@@ -258,12 +270,27 @@ class CameraPanel(QtWidgets.QWidget):
         return slider
 
     @staticmethod
-    def _build_toggle(label: str) -> QtWidgets.QCheckBox:
-        toggle = QtWidgets.QCheckBox(label)
+    def _build_toggle(label_on: str, label_off: str) -> QtWidgets.QCheckBox:
+        toggle = QtWidgets.QCheckBox(label_on)
         toggle.setObjectName("ToggleSwitch")
         toggle.setCursor(QtCore.Qt.PointingHandCursor)
         toggle.setChecked(True)
+        toggle.setProperty("label_on", label_on)
+        toggle.setProperty("label_off", label_off)
         return toggle
+
+    @staticmethod
+    def _update_toggle_label(toggle: QtWidgets.QCheckBox, label_on: str, label_off: str) -> None:
+        toggle.setText(label_on if toggle.isChecked() else label_off)
+
+    def _bind_auto_toggle(self, toggle: QtWidgets.QCheckBox, slider: QtWidgets.QSlider) -> None:
+        def _sync_state(checked: bool) -> None:
+            toggle.setText("Auto" if checked else "Manual")
+            slider.setEnabled(not checked)
+
+        toggle.setChecked(True)
+        _sync_state(toggle.isChecked())
+        toggle.toggled.connect(_sync_state)
 
     @staticmethod
     def _build_status_dot(is_online: bool) -> QtWidgets.QLabel:
