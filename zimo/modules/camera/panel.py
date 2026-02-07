@@ -17,6 +17,11 @@ class CameraPanel(QtWidgets.QWidget):
     def __init__(self, api: ApiClient) -> None:
         super().__init__()
         self._api = api
+        self._camera_names = [f"Camera {index}" for index in range(1, 9)]
+        self._camera_buttons: list[QtWidgets.QPushButton] = []
+        self._current_camera_index = 0
+        self._camera_name_input: QtWidgets.QLineEdit | None = None
+        self._current_camera_label: QtWidgets.QLabel | None = None
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -30,18 +35,58 @@ class CameraPanel(QtWidgets.QWidget):
         layout.addWidget(header)
         layout.addWidget(subtitle)
 
-        cards_layout = QtWidgets.QHBoxLayout()
-        cards_layout.setSpacing(16)
+        body_layout = QtWidgets.QHBoxLayout()
+        body_layout.setSpacing(16)
 
+        left_column = QtWidgets.QVBoxLayout()
+        left_column.setSpacing(16)
+
+        selection_card = self._build_selection_card()
         status_card = self._build_status_card()
-        control_card = self._build_control_card()
 
-        cards_layout.addWidget(status_card, 1)
-        cards_layout.addWidget(control_card, 1)
+        left_column.addWidget(selection_card, 1)
+        left_column.addWidget(status_card, 1)
 
-        layout.addLayout(cards_layout)
+        settings_card = self._build_settings_card()
+
+        body_layout.addLayout(left_column, 1)
+        body_layout.addWidget(settings_card, 2)
+
+        layout.addLayout(body_layout)
 
         layout.addStretch()
+
+    def _build_selection_card(self) -> QtWidgets.QWidget:
+        card = QtWidgets.QWidget()
+        card.setObjectName("Card")
+        layout = QtWidgets.QVBoxLayout(card)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        title = QtWidgets.QLabel("Camera Selection")
+        title.setObjectName("CardTitle")
+        hint = QtWidgets.QLabel("Select a camera to edit its settings.")
+        hint.setObjectName("CardMeta")
+
+        layout.addWidget(title)
+        layout.addWidget(hint)
+
+        button_group = QtWidgets.QButtonGroup(self)
+        button_group.setExclusive(True)
+
+        for index, name in enumerate(self._camera_names):
+            button = QtWidgets.QPushButton(name)
+            button.setCheckable(True)
+            button.setCursor(QtCore.Qt.PointingHandCursor)
+            button.clicked.connect(lambda checked, i=index: self._select_camera(i))
+            if index == self._current_camera_index:
+                button.setChecked(True)
+            button_group.addButton(button)
+            layout.addWidget(button)
+            self._camera_buttons.append(button)
+
+        layout.addStretch()
+        return card
 
     def _build_status_card(self) -> QtWidgets.QWidget:
         card = QtWidgets.QWidget()
@@ -70,34 +115,113 @@ class CameraPanel(QtWidgets.QWidget):
         layout.addStretch()
         return card
 
-    def _build_control_card(self) -> QtWidgets.QWidget:
+    def _build_settings_card(self) -> QtWidgets.QWidget:
         card = QtWidgets.QWidget()
         card.setObjectName("Card")
         layout = QtWidgets.QVBoxLayout(card)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(16)
 
-        title = QtWidgets.QLabel("Capture Settings")
+        title = QtWidgets.QLabel("Camera Settings")
         title.setObjectName("CardTitle")
 
-        exposure_label = QtWidgets.QLabel("Exposure")
-        exposure_slider = self._build_slider()
-
-        gain_label = QtWidgets.QLabel("Gain")
-        gain_slider = self._build_slider()
-
-        sync_label = QtWidgets.QLabel("Sync Mode")
-        sync_toggle = QtWidgets.QPushButton("Auto")
-        sync_toggle.setCheckable(True)
-        sync_toggle.setCursor(QtCore.Qt.PointingHandCursor)
-
         layout.addWidget(title)
-        layout.addWidget(exposure_label)
-        layout.addWidget(exposure_slider)
-        layout.addWidget(gain_label)
-        layout.addWidget(gain_slider)
-        layout.addWidget(sync_label)
-        layout.addWidget(sync_toggle)
+
+        current_label = QtWidgets.QLabel(self._camera_names[self._current_camera_index])
+        current_label.setObjectName("CardValue")
+        self._current_camera_label = current_label
+        layout.addWidget(current_label)
+
+        form = QtWidgets.QGridLayout()
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(10)
+
+        row = 0
+
+        enable_toggle = self._build_toggle("Enabled")
+        form.addWidget(QtWidgets.QLabel("Enable / Disable camera"), row, 0)
+        form.addWidget(enable_toggle, row, 1)
+        row += 1
+
+        auto_exposure_toggle = self._build_toggle("Auto")
+        form.addWidget(QtWidgets.QLabel("Auto Exposure"), row, 0)
+        form.addWidget(auto_exposure_toggle, row, 1)
+        row += 1
+
+        auto_gain_toggle = self._build_toggle("Auto")
+        form.addWidget(QtWidgets.QLabel("Auto Gain"), row, 0)
+        form.addWidget(auto_gain_toggle, row, 1)
+        row += 1
+
+        auto_wb_toggle = self._build_toggle("Auto")
+        form.addWidget(QtWidgets.QLabel("Auto WB"), row, 0)
+        form.addWidget(auto_wb_toggle, row, 1)
+        row += 1
+
+        exposure_slider = self._build_slider()
+        form.addWidget(QtWidgets.QLabel("Exposure"), row, 0)
+        form.addWidget(exposure_slider, row, 1)
+        row += 1
+
+        gain_slider = self._build_slider()
+        form.addWidget(QtWidgets.QLabel("Gain"), row, 0)
+        form.addWidget(gain_slider, row, 1)
+        row += 1
+
+        wb_slider = self._build_slider()
+        form.addWidget(QtWidgets.QLabel("White balance"), row, 0)
+        form.addWidget(wb_slider, row, 1)
+        row += 1
+
+        reset_button = QtWidgets.QPushButton("Reset to defaults")
+        reset_button.setCursor(QtCore.Qt.PointingHandCursor)
+        form.addWidget(QtWidgets.QLabel("Defaults"), row, 0)
+        form.addWidget(reset_button, row, 1)
+        row += 1
+
+        aruco_toggle = self._build_toggle("Enabled")
+        form.addWidget(QtWidgets.QLabel("Enable ArUco"), row, 0)
+        form.addWidget(aruco_toggle, row, 1)
+        row += 1
+
+        detect_once = QtWidgets.QPushButton("Detect once")
+        detect_once.setCursor(QtCore.Qt.PointingHandCursor)
+        form.addWidget(QtWidgets.QLabel("Detect once"), row, 0)
+        form.addWidget(detect_once, row, 1)
+        row += 1
+
+        aruco_dict = QtWidgets.QComboBox()
+        aruco_dict.addItems(
+            [
+                "DICT_4X4_50",
+                "DICT_4X4_100",
+                "DICT_5X5_50",
+                "DICT_6X6_100",
+                "DICT_7X7_250",
+            ]
+        )
+        form.addWidget(QtWidgets.QLabel("ArUco dictionary"), row, 0)
+        form.addWidget(aruco_dict, row, 1)
+        row += 1
+
+        rename_input = QtWidgets.QLineEdit()
+        rename_input.setPlaceholderText("Enter new camera name")
+        rename_input.setText(self._camera_names[self._current_camera_index])
+        rename_input.editingFinished.connect(self._apply_camera_rename)
+        self._camera_name_input = rename_input
+
+        rename_button = QtWidgets.QPushButton("Rename camera")
+        rename_button.setCursor(QtCore.Qt.PointingHandCursor)
+        rename_button.clicked.connect(self._apply_camera_rename)
+
+        rename_layout = QtWidgets.QHBoxLayout()
+        rename_layout.addWidget(rename_input, 1)
+        rename_layout.addWidget(rename_button)
+
+        form.addWidget(QtWidgets.QLabel("Camera name"), row, 0)
+        form.addLayout(rename_layout, row, 1)
+
+        layout.addLayout(form)
         layout.addStretch()
 
         return card
@@ -108,6 +232,36 @@ class CameraPanel(QtWidgets.QWidget):
         slider.setRange(0, 100)
         slider.setValue(40)
         return slider
+
+    @staticmethod
+    def _build_toggle(label: str) -> QtWidgets.QPushButton:
+        toggle = QtWidgets.QPushButton(label)
+        toggle.setCheckable(True)
+        toggle.setCursor(QtCore.Qt.PointingHandCursor)
+        toggle.setChecked(True)
+        return toggle
+
+    def _select_camera(self, index: int) -> None:
+        self._current_camera_index = index
+        if self._current_camera_label is not None:
+            self._current_camera_label.setText(self._camera_names[index])
+        if self._camera_name_input is not None:
+            self._camera_name_input.setText(self._camera_names[index])
+        for button_index, button in enumerate(self._camera_buttons):
+            button.setChecked(button_index == index)
+
+    def _apply_camera_rename(self) -> None:
+        if self._camera_name_input is None:
+            return
+        new_name = self._camera_name_input.text().strip()
+        if not new_name:
+            self._camera_name_input.setText(self._camera_names[self._current_camera_index])
+            return
+        self._camera_names[self._current_camera_index] = new_name
+        if self._current_camera_label is not None:
+            self._current_camera_label.setText(new_name)
+        if self._camera_buttons:
+            self._camera_buttons[self._current_camera_index].setText(new_name)
 
 
 if __name__ == "__main__":
