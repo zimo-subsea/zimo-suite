@@ -1,0 +1,127 @@
+* {
+    font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #e6e7ea;
+}
+
+QMainWindow {
+    background-color: #0b0e12;
+}
+
+#MainFrame {
+    background-color: #0d1116;
+}
+
+#Sidebar {
+    background-color: #0b0e12;
+    border-right: 1px solid #1d222b;
+    padding-top: 12px;
+    outline: none;
+}
+
+#Sidebar::item {
+    padding: 14px 18px;
+    margin: 4px 10px;
+    border-radius: 10px;
+    background-color: transparent;
+}
+
+#Sidebar::item:selected {
+    background-color: #1a212b;
+    color: #ffffff;
+    border: 1px solid #2a313b;
+}
+
+#Sidebar::item:hover {
+    background-color: #141920;
+}
+
+#Topbar {
+    background-color: #0b0e12;
+    border-bottom: 1px solid #1d222b;
+}
+
+#Logo {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #f5f5f6;
+}
+
+#TopbarSubtitle {
+    font-size: 12px;
+    color: #9ba3ad;
+}
+
+#StatusLabel {
+    background-color: #141a22;
+    padding: 6px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    color: #e6e7ea;
+    border: 1px solid #2a313b;
+}
+
+#PageTitle {
+    font-size: 26px;
+    font-weight: 600;
+    color: #f2f3f5;
+}
+
+#PageSubtitle {
+    font-size: 13px;
+    color: #9ba3ad;
+}
+
+#Card {
+    background-color: #12161c;
+    border-radius: 16px;
+    border: 1px solid #222833;
+}
+
+#CardTitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f2f3f5;
+}
+
+#InfoLabel {
+    font-size: 12px;
+    color: #9ba3ad;
+}
+
+#InfoValue {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f2f3f5;
+}
+
+#SliderValue {
+    font-size: 12px;
+    color: #e6e7ea;
+}
+
+#StreamPlaceholder {
+    border: 1px dashed #2a313b;
+    border-radius: 12px;
+    padding: 24px;
+    color: #7e8894;
+}
+
+QSlider::groove:horizontal {
+    height: 6px;
+    background: #1b212b;
+    border-radius: 3px;
+}
+
+QSlider::handle:horizontal {
+    background: #d11d28;
+    width: 18px;
+    height: 18px;
+    margin: -6px 0;
+    border-radius: 9px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #d11d28;
+    border-radius: 3px;
+}
