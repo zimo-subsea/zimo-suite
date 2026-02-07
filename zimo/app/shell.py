@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from PySide6 import QtCore, QtWidgets, QtSvgWidgets
+from PySide6 import QtCore, QtGui, QtWidgets, QtSvgWidgets
 
 from zimo.core.api_client import ApiClient
 from zimo.core.module_base import ModuleBase
@@ -25,6 +25,8 @@ class ZiMOShell(QtWidgets.QMainWindow):
         super().__init__()
         self.setWindowTitle("ZiMO Suite")
         self.resize(1280, 800)
+        icon_path = Path(__file__).with_name("logo.png")
+        self.setWindowIcon(QtGui.QIcon(str(icon_path)))
 
         self._api = ApiClient()
         self._modules: list[ModuleEntry] = []
