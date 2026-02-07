@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from PySide6 import QtCore, QtWidgets, QtSvgWidgets
+from PySide6 import QtCore, QtGui, QtWidgets, QtSvgWidgets
 
 from zimo.core.api_client import ApiClient
 from zimo.core.module_base import ModuleBase
@@ -64,10 +64,7 @@ class ZiMOShell(QtWidgets.QMainWindow):
         layout = QtWidgets.QHBoxLayout(bar)
         layout.setContentsMargins(24, 12, 24, 12)
 
-        logo_path = Path(__file__).with_name("logo-placeholder.svg")
-        logo = QtSvgWidgets.QSvgWidget(str(logo_path))
-        logo.setObjectName("Logo")
-        logo.setFixedSize(80, 28)
+        logo = self._build_logo_widget()
         status = QtWidgets.QLabel("Online · 3 devices")
         status.setObjectName("Status")
         status.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
@@ -76,6 +73,25 @@ class ZiMOShell(QtWidgets.QMainWindow):
         layout.addStretch()
         layout.addWidget(status)
         return bar
+
+    @staticmethod
+    def _build_logo_widget() -> QtWidgets.QWidget:
+        png_path = Path(__file__).with_name("logo.png")
+        if png_path.exists():
+            label = QtWidgets.QLabel()
+            label.setObjectName("Logo")
+            pixmap = QtGui.QPixmap(str(png_path))
+            label.setPixmap(
+                pixmap.scaled(120, 36, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+            )
+            label.setFixedSize(120, 36)
+            return label
+
+        logo_path = Path(__file__).with_name("logo-placeholder.svg")
+        logo = QtSvgWidgets.QSvgWidget(str(logo_path))
+        logo.setObjectName("Logo")
+        logo.setFixedSize(80, 28)
+        return logo
 
     def _build_sidebar(self) -> QtWidgets.QWidget:
         sidebar = QtWidgets.QWidget()
