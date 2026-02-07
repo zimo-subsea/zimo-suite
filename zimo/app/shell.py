@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets, QtSvgWidgets
 
 from zimo.core.api_client import ApiClient
 from zimo.core.module_base import ModuleBase
@@ -28,7 +29,7 @@ class ZiMOShell(QtWidgets.QMainWindow):
         self._api = ApiClient()
         self._modules: list[ModuleEntry] = []
         self._module_status = {
-            "Camera": True,
+            "Vision Processing Unit": True,
             "Vibration": False,
         }
 
@@ -63,8 +64,10 @@ class ZiMOShell(QtWidgets.QMainWindow):
         layout = QtWidgets.QHBoxLayout(bar)
         layout.setContentsMargins(24, 12, 24, 12)
 
-        logo = QtWidgets.QLabel("ZiMO")
+        logo_path = Path(__file__).with_name("logo-placeholder.svg")
+        logo = QtSvgWidgets.QSvgWidget(str(logo_path))
         logo.setObjectName("Logo")
+        logo.setFixedSize(80, 28)
         status = QtWidgets.QLabel("Online · 3 devices")
         status.setObjectName("Status")
         status.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)

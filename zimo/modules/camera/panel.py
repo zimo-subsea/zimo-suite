@@ -7,7 +7,7 @@ from zimo.core.module_base import ModuleBase
 
 
 class CameraModule(ModuleBase):
-    title = "Camera"
+    title = "Vision Processing Unit"
 
     def create_panel(self, api: ApiClient) -> QtWidgets.QWidget:
         return CameraPanel(api)
@@ -204,6 +204,12 @@ class CameraPanel(QtWidgets.QWidget):
         reset_button.setCursor(QtCore.Qt.PointingHandCursor)
         form.addWidget(QtWidgets.QLabel("Defaults"), row, 0)
         form.addWidget(reset_button, row, 1)
+        row += 1
+
+        advanced_button = QtWidgets.QPushButton("Advanced settings")
+        advanced_button.setCursor(QtCore.Qt.PointingHandCursor)
+        form.addWidget(QtWidgets.QLabel("Advanced"), row, 0)
+        form.addWidget(advanced_button, row, 1)
         row += 1
 
         aruco_toggle = self._build_toggle("On")
