@@ -8,7 +8,7 @@ from PySide6 import QtCore, QtGui, QtWidgets, QtSvgWidgets
 
 from zimo.core.api_client import ApiClient
 from zimo.core.module_base import ModuleBase
-from zimo.modules.camera.panel import CameraModule
+from zimo.modules.vpu.panel import VpuModule
 from zimo.modules.vibration.panel import VibrationModule
 
 
@@ -58,7 +58,7 @@ class ZiMOShell(QtWidgets.QMainWindow):
 
         self.setCentralWidget(root)
 
-        self._load_modules([CameraModule(), VibrationModule()])
+        self._load_modules([VpuModule(), VibrationModule()])
 
     def _build_topbar(self) -> QtWidgets.QWidget:
         bar = QtWidgets.QWidget()
