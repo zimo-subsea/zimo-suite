@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from zimo.core.api_client import ApiClient
 from zimo.core.module_base import ModuleBase
@@ -141,20 +141,14 @@ class VpuPanel(QtWidgets.QWidget):
         title = QtWidgets.QLabel("Status")
         title.setObjectName("CardTitle")
 
-        status = self._api.get_camera_status()
-        state = QtWidgets.QLabel("Streaming" if status.is_streaming else "Idle")
-        state.setObjectName("StatusPill")
-        state.setProperty("severity", "success" if status.is_streaming else "neutral")
-
-        temp = QtWidgets.QLabel(f"Temperature: {status.temperature_c:.1f} °C")
-        temp.setObjectName("CardValue")
-        last_frame = QtWidgets.QLabel(f"Last frame: {status.last_frame.strftime('%H:%M:%S UTC')}")
-        last_frame.setObjectName("CardMeta")
+        docs_button = QtWidgets.QPushButton("Open VPU documentation")
+        docs_button.setCursor(QtCore.Qt.PointingHandCursor)
+        docs_button.clicked.connect(
+            lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://docs.zimo.no/products/vpu/"))
+        )
 
         layout.addWidget(title)
-        layout.addWidget(state)
-        layout.addWidget(temp)
-        layout.addWidget(last_frame)
+        layout.addWidget(docs_button)
         layout.addStretch()
         return card
 
@@ -234,11 +228,13 @@ class VpuPanel(QtWidgets.QWidget):
         form.addWidget(auto_wb_toggle, row, 2)
         row += 1
 
-        reset_button = QtWidgets.QPushButton("Reset to defaults")
-        reset_button.setCursor(QtCore.Qt.PointingHandCursor)
-        reset_button.clicked.connect(self._reset_to_defaults)
-        form.addWidget(QtWidgets.QLabel("Defaults"), row, 0)
-        form.addWidget(reset_button, row, 1)
+        docs_button = QtWidgets.QPushButton("Open camera documentation")
+        docs_button.setCursor(QtCore.Qt.PointingHandCursor)
+        docs_button.clicked.connect(
+            lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://docs.zimo.no/products/camera/"))
+        )
+        form.addWidget(QtWidgets.QLabel("Camera docs"), row, 0)
+        form.addWidget(docs_button, row, 1)
         row += 1
 
         aruco_toggle = self._build_toggle("On", "Off")
@@ -532,10 +528,6 @@ class VpuPanel(QtWidgets.QWidget):
             base["name"] = self._camera_names[self._current_camera_index]
         return base
 
-    def _reset_to_defaults(self) -> None:
-        settings = self._default_settings()
-        self._apply_settings_snapshot(settings)
-
     def _apply_settings_snapshot(self, settings: dict[str, object]) -> None:
         if self._enable_toggle is not None:
             self._enable_toggle.setChecked(bool(settings.get("enabled", True)))
@@ -613,6 +605,15 @@ class VpuPanel(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(self, "Load preset", "Preset could not be loaded.")
             return
         self._apply_settings_snapshot(preset_settings)
+        self._persist_current_settings()
+
+    def _persist_current_settings(self) -> None:
+        settings = self._collect_settings(include_name=True)
+        self._camera_settings[self._camera_key()] = settings
+        self._settings_file.write_text(
+            json.dumps(self._camera_settings, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
 
 
 if __name__ == "__main__":
