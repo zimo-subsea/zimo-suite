@@ -1,19 +1,22 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from PySide6 import QtCore, QtWidgets
 
 from zimo.core.api_client import ApiClient
 from zimo.core.module_base import ModuleBase
 
 
-class CameraModule(ModuleBase):
+class VpuModule(ModuleBase):
     title = "Vision Processing Unit"
 
     def create_panel(self, api: ApiClient) -> QtWidgets.QWidget:
-        return CameraPanel(api)
+        return VpuPanel(api)
 
 
-class CameraPanel(QtWidgets.QWidget):
+class VpuPanel(QtWidgets.QWidget):
     def __init__(self, api: ApiClient) -> None:
         super().__init__()
         self._api = api
@@ -24,6 +27,19 @@ class CameraPanel(QtWidgets.QWidget):
         self._current_camera_index = 0
         self._current_camera_label: QtWidgets.QLabel | None = None
         self._camera_pen_buttons: list[QtWidgets.QPushButton] = []
+        self._settings_file = Path(__file__).with_name("vpu_settings.json")
+        self._camera_settings: dict[str, dict[str, object]] = self._load_settings()
+        self._fps_selector: QtWidgets.QComboBox | None = None
+        self._resolution_selector: QtWidgets.QComboBox | None = None
+        self._exposure_slider: QtWidgets.QSlider | None = None
+        self._auto_exposure_toggle: QtWidgets.QCheckBox | None = None
+        self._gain_slider: QtWidgets.QSlider | None = None
+        self._auto_gain_toggle: QtWidgets.QCheckBox | None = None
+        self._wb_slider: QtWidgets.QSlider | None = None
+        self._auto_wb_toggle: QtWidgets.QCheckBox | None = None
+        self._enable_toggle: QtWidgets.QCheckBox | None = None
+        self._aruco_toggle: QtWidgets.QCheckBox | None = None
+        self._aruco_dict: QtWidgets.QComboBox | None = None
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -163,6 +179,7 @@ class CameraPanel(QtWidgets.QWidget):
         enable_toggle = self._build_toggle("On", "Off")
         enable_toggle.toggled.connect(lambda checked: self._update_toggle_label(enable_toggle, "On", "Off"))
         self._update_toggle_label(enable_toggle, "On", "Off")
+        self._enable_toggle = enable_toggle
         header_row.addWidget(enable_toggle)
         layout.addLayout(header_row)
 
@@ -175,12 +192,14 @@ class CameraPanel(QtWidgets.QWidget):
 
         fps_selector = QtWidgets.QComboBox()
         fps_selector.addItems(["24 FPS", "30 FPS", "60 FPS", "90 FPS", "120 FPS"])
+        self._fps_selector = fps_selector
         form.addWidget(QtWidgets.QLabel("FPS"), row, 0)
         form.addWidget(fps_selector, row, 1)
         row += 1
 
         resolution_selector = QtWidgets.QComboBox()
         resolution_selector.addItems(["1280 × 720", "1920 × 1080", "2560 × 1440", "3840 × 2160 (4K)"])
+        self._resolution_selector = resolution_selector
         form.addWidget(QtWidgets.QLabel("Resolution"), row, 0)
         form.addWidget(resolution_selector, row, 1)
         row += 1
@@ -188,6 +207,8 @@ class CameraPanel(QtWidgets.QWidget):
         exposure_slider = self._build_slider()
         auto_exposure_toggle = self._build_toggle("Auto", "Manual")
         self._bind_auto_toggle(auto_exposure_toggle, exposure_slider)
+        self._exposure_slider = exposure_slider
+        self._auto_exposure_toggle = auto_exposure_toggle
         form.addWidget(QtWidgets.QLabel("Exposure"), row, 0)
         form.addWidget(exposure_slider, row, 1)
         form.addWidget(auto_exposure_toggle, row, 2)
@@ -196,6 +217,8 @@ class CameraPanel(QtWidgets.QWidget):
         gain_slider = self._build_slider()
         auto_gain_toggle = self._build_toggle("Auto", "Manual")
         self._bind_auto_toggle(auto_gain_toggle, gain_slider)
+        self._gain_slider = gain_slider
+        self._auto_gain_toggle = auto_gain_toggle
         form.addWidget(QtWidgets.QLabel("Gain"), row, 0)
         form.addWidget(gain_slider, row, 1)
         form.addWidget(auto_gain_toggle, row, 2)
@@ -204,6 +227,8 @@ class CameraPanel(QtWidgets.QWidget):
         wb_slider = self._build_slider()
         auto_wb_toggle = self._build_toggle("Auto", "Manual")
         self._bind_auto_toggle(auto_wb_toggle, wb_slider)
+        self._wb_slider = wb_slider
+        self._auto_wb_toggle = auto_wb_toggle
         form.addWidget(QtWidgets.QLabel("White balance"), row, 0)
         form.addWidget(wb_slider, row, 1)
         form.addWidget(auto_wb_toggle, row, 2)
@@ -218,6 +243,7 @@ class CameraPanel(QtWidgets.QWidget):
         aruco_toggle = self._build_toggle("On", "Off")
         aruco_toggle.toggled.connect(lambda checked: self._update_toggle_label(aruco_toggle, "On", "Off"))
         self._update_toggle_label(aruco_toggle, "On", "Off")
+        self._aruco_toggle = aruco_toggle
         form.addWidget(QtWidgets.QLabel("Enable ArUco"), row, 0)
         form.addWidget(aruco_toggle, row, 1)
         row += 1
@@ -232,6 +258,7 @@ class CameraPanel(QtWidgets.QWidget):
                 "DICT_7X7_250",
             ]
         )
+        self._aruco_dict = aruco_dict
         form.addWidget(QtWidgets.QLabel("ArUco dictionary"), row, 0)
         form.addWidget(aruco_dict, row, 1)
         row += 1
@@ -250,15 +277,21 @@ class CameraPanel(QtWidgets.QWidget):
         layout.addLayout(gear_row)
 
         presets_row = QtWidgets.QHBoxLayout()
+        apply_button = QtWidgets.QPushButton("Apply")
+        apply_button.setCursor(QtCore.Qt.PointingHandCursor)
+        apply_button.clicked.connect(self._apply_settings)
         save_button = QtWidgets.QPushButton("Save setup")
         save_button.setCursor(QtCore.Qt.PointingHandCursor)
         load_button = QtWidgets.QPushButton("Load preset")
         load_button.setCursor(QtCore.Qt.PointingHandCursor)
+        presets_row.addWidget(apply_button)
         presets_row.addWidget(save_button)
         presets_row.addWidget(load_button)
         presets_row.addStretch()
         layout.addLayout(presets_row)
         layout.addStretch()
+
+        self._apply_loaded_settings()
 
         return card
 
@@ -345,6 +378,7 @@ class CameraPanel(QtWidgets.QWidget):
             edit.setText(self._camera_names[edit_index])
             edit.setVisible(False)
             self._camera_buttons[edit_index].setVisible(True)
+        self._apply_loaded_settings()
 
     def _enable_name_edit(self, index: int) -> None:
         edit = self._camera_name_edits[index]
@@ -367,12 +401,100 @@ class CameraPanel(QtWidgets.QWidget):
         if self._current_camera_label is not None and index == self._current_camera_index:
             self._current_camera_label.setText(new_name)
 
+    def _load_settings(self) -> dict[str, dict[str, object]]:
+        if not self._settings_file.exists():
+            return {}
+        try:
+            return json.loads(self._settings_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+
+    def _camera_key(self, index: int | None = None) -> str:
+        if index is None:
+            index = self._current_camera_index
+        return f"camera_{index + 1}"
+
+    def _apply_settings(self) -> None:
+        if self._fps_selector is None or self._resolution_selector is None:
+            return
+        settings = {
+            "name": self._camera_names[self._current_camera_index],
+            "enabled": bool(self._enable_toggle and self._enable_toggle.isChecked()),
+            "fps": self._fps_selector.currentText(),
+            "resolution": self._resolution_selector.currentText(),
+            "exposure": {
+                "value": self._exposure_slider.value() if self._exposure_slider else 0,
+                "auto": bool(self._auto_exposure_toggle and self._auto_exposure_toggle.isChecked()),
+            },
+            "gain": {
+                "value": self._gain_slider.value() if self._gain_slider else 0,
+                "auto": bool(self._auto_gain_toggle and self._auto_gain_toggle.isChecked()),
+            },
+            "white_balance": {
+                "value": self._wb_slider.value() if self._wb_slider else 0,
+                "auto": bool(self._auto_wb_toggle and self._auto_wb_toggle.isChecked()),
+            },
+            "aruco": {
+                "enabled": bool(self._aruco_toggle and self._aruco_toggle.isChecked()),
+                "dictionary": self._aruco_dict.currentText() if self._aruco_dict else "",
+            },
+        }
+        self._camera_settings[self._camera_key()] = settings
+        self._settings_file.write_text(
+            json.dumps(self._camera_settings, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    def _apply_loaded_settings(self) -> None:
+        settings = self._camera_settings.get(self._camera_key())
+        if not settings:
+            return
+        name = settings.get("name")
+        if isinstance(name, str) and name:
+            self._camera_names[self._current_camera_index] = name
+            if self._current_camera_label is not None:
+                self._current_camera_label.setText(name)
+            button = self._camera_buttons[self._current_camera_index]
+            button.setText(name)
+            edit = self._camera_name_edits[self._current_camera_index]
+            edit.setText(name)
+        if self._fps_selector is not None:
+            self._fps_selector.setCurrentText(settings.get("fps", self._fps_selector.currentText()))
+        if self._resolution_selector is not None:
+            self._resolution_selector.setCurrentText(
+                settings.get("resolution", self._resolution_selector.currentText())
+            )
+        if self._enable_toggle is not None:
+            self._enable_toggle.setChecked(bool(settings.get("enabled", True)))
+            self._update_toggle_label(self._enable_toggle, "On", "Off")
+        exposure = settings.get("exposure", {})
+        if self._exposure_slider is not None:
+            self._exposure_slider.setValue(int(exposure.get("value", self._exposure_slider.value())))
+        if self._auto_exposure_toggle is not None:
+            self._auto_exposure_toggle.setChecked(bool(exposure.get("auto", True)))
+        gain = settings.get("gain", {})
+        if self._gain_slider is not None:
+            self._gain_slider.setValue(int(gain.get("value", self._gain_slider.value())))
+        if self._auto_gain_toggle is not None:
+            self._auto_gain_toggle.setChecked(bool(gain.get("auto", True)))
+        white_balance = settings.get("white_balance", {})
+        if self._wb_slider is not None:
+            self._wb_slider.setValue(int(white_balance.get("value", self._wb_slider.value())))
+        if self._auto_wb_toggle is not None:
+            self._auto_wb_toggle.setChecked(bool(white_balance.get("auto", True)))
+        aruco = settings.get("aruco", {})
+        if self._aruco_toggle is not None:
+            self._aruco_toggle.setChecked(bool(aruco.get("enabled", True)))
+            self._update_toggle_label(self._aruco_toggle, "On", "Off")
+        if self._aruco_dict is not None:
+            self._aruco_dict.setCurrentText(aruco.get("dictionary", self._aruco_dict.currentText()))
+
 
 if __name__ == "__main__":
     import sys
 
     app = QtWidgets.QApplication(sys.argv)
-    panel = CameraPanel(ApiClient())
+    panel = VpuPanel(ApiClient())
     panel.resize(800, 600)
     panel.show()
     sys.exit(app.exec())
