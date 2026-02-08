@@ -236,6 +236,7 @@ class VpuPanel(QtWidgets.QWidget):
 
         reset_button = QtWidgets.QPushButton("Reset to defaults")
         reset_button.setCursor(QtCore.Qt.PointingHandCursor)
+        reset_button.clicked.connect(self._reset_to_defaults)
         form.addWidget(QtWidgets.QLabel("Defaults"), row, 0)
         form.addWidget(reset_button, row, 1)
         row += 1
@@ -282,8 +283,10 @@ class VpuPanel(QtWidgets.QWidget):
         apply_button.clicked.connect(self._apply_settings)
         save_button = QtWidgets.QPushButton("Save setup")
         save_button.setCursor(QtCore.Qt.PointingHandCursor)
+        save_button.clicked.connect(self._save_preset)
         load_button = QtWidgets.QPushButton("Load preset")
         load_button.setCursor(QtCore.Qt.PointingHandCursor)
+        load_button.clicked.connect(self._load_preset)
         presets_row.addWidget(apply_button)
         presets_row.addWidget(save_button)
         presets_row.addWidget(load_button)
@@ -409,6 +412,18 @@ class VpuPanel(QtWidgets.QWidget):
         except (json.JSONDecodeError, OSError):
             return {}
 
+    @staticmethod
+    def _default_settings() -> dict[str, object]:
+        return {
+            "enabled": True,
+            "fps": "30 FPS",
+            "resolution": "1920 × 1080",
+            "exposure": {"value": 40, "auto": True},
+            "gain": {"value": 40, "auto": True},
+            "white_balance": {"value": 40, "auto": True},
+            "aruco": {"enabled": True, "dictionary": "DICT_4X4_50"},
+        }
+
     def _camera_key(self, index: int | None = None) -> str:
         if index is None:
             index = self._current_camera_index
@@ -446,7 +461,9 @@ class VpuPanel(QtWidgets.QWidget):
         )
 
     def _apply_loaded_settings(self) -> None:
-        settings = self._camera_settings.get(self._camera_key())
+        settings = self._camera_settings.get(self._camera_key(), {})
+        if not settings:
+            settings = self._default_settings()
         if not settings:
             return
         name = settings.get("name")
@@ -488,6 +505,114 @@ class VpuPanel(QtWidgets.QWidget):
             self._update_toggle_label(self._aruco_toggle, "On", "Off")
         if self._aruco_dict is not None:
             self._aruco_dict.setCurrentText(aruco.get("dictionary", self._aruco_dict.currentText()))
+
+    def _collect_settings(self, include_name: bool = True) -> dict[str, object]:
+        base = {
+            "enabled": bool(self._enable_toggle and self._enable_toggle.isChecked()),
+            "fps": self._fps_selector.currentText() if self._fps_selector else "30 FPS",
+            "resolution": self._resolution_selector.currentText() if self._resolution_selector else "1920 × 1080",
+            "exposure": {
+                "value": self._exposure_slider.value() if self._exposure_slider else 0,
+                "auto": bool(self._auto_exposure_toggle and self._auto_exposure_toggle.isChecked()),
+            },
+            "gain": {
+                "value": self._gain_slider.value() if self._gain_slider else 0,
+                "auto": bool(self._auto_gain_toggle and self._auto_gain_toggle.isChecked()),
+            },
+            "white_balance": {
+                "value": self._wb_slider.value() if self._wb_slider else 0,
+                "auto": bool(self._auto_wb_toggle and self._auto_wb_toggle.isChecked()),
+            },
+            "aruco": {
+                "enabled": bool(self._aruco_toggle and self._aruco_toggle.isChecked()),
+                "dictionary": self._aruco_dict.currentText() if self._aruco_dict else "",
+            },
+        }
+        if include_name:
+            base["name"] = self._camera_names[self._current_camera_index]
+        return base
+
+    def _reset_to_defaults(self) -> None:
+        settings = self._default_settings()
+        self._apply_settings_snapshot(settings)
+
+    def _apply_settings_snapshot(self, settings: dict[str, object]) -> None:
+        if self._enable_toggle is not None:
+            self._enable_toggle.setChecked(bool(settings.get("enabled", True)))
+            self._update_toggle_label(self._enable_toggle, "On", "Off")
+        if self._fps_selector is not None:
+            self._fps_selector.setCurrentText(str(settings.get("fps", "30 FPS")))
+        if self._resolution_selector is not None:
+            self._resolution_selector.setCurrentText(str(settings.get("resolution", "1920 × 1080")))
+        exposure = settings.get("exposure", {})
+        if self._exposure_slider is not None:
+            self._exposure_slider.setValue(int(exposure.get("value", self._exposure_slider.value())))
+        if self._auto_exposure_toggle is not None:
+            self._auto_exposure_toggle.setChecked(bool(exposure.get("auto", True)))
+        gain = settings.get("gain", {})
+        if self._gain_slider is not None:
+            self._gain_slider.setValue(int(gain.get("value", self._gain_slider.value())))
+        if self._auto_gain_toggle is not None:
+            self._auto_gain_toggle.setChecked(bool(gain.get("auto", True)))
+        white_balance = settings.get("white_balance", {})
+        if self._wb_slider is not None:
+            self._wb_slider.setValue(int(white_balance.get("value", self._wb_slider.value())))
+        if self._auto_wb_toggle is not None:
+            self._auto_wb_toggle.setChecked(bool(white_balance.get("auto", True)))
+        aruco = settings.get("aruco", {})
+        if self._aruco_toggle is not None:
+            self._aruco_toggle.setChecked(bool(aruco.get("enabled", True)))
+            self._update_toggle_label(self._aruco_toggle, "On", "Off")
+        if self._aruco_dict is not None:
+            self._aruco_dict.setCurrentText(str(aruco.get("dictionary", "DICT_4X4_50")))
+
+    def _presets_dir(self) -> Path:
+        return Path(__file__).with_name("presets")
+
+    def _save_preset(self) -> None:
+        preset_name, ok = QtWidgets.QInputDialog.getText(
+            self,
+            "Save preset",
+            "Preset name:",
+        )
+        if not ok or not preset_name.strip():
+            return
+        safe_name = preset_name.strip().replace("/", "-")
+        preset_path = self._presets_dir() / f"{safe_name}.json"
+        preset_path.parent.mkdir(parents=True, exist_ok=True)
+        preset_settings = self._collect_settings(include_name=False)
+        preset_path.write_text(
+            json.dumps(preset_settings, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    def _load_preset(self) -> None:
+        presets_dir = self._presets_dir()
+        if not presets_dir.exists():
+            QtWidgets.QMessageBox.information(self, "Load preset", "No presets found.")
+            return
+        preset_files = sorted(presets_dir.glob("*.json"))
+        if not preset_files:
+            QtWidgets.QMessageBox.information(self, "Load preset", "No presets found.")
+            return
+        preset_names = [path.stem for path in preset_files]
+        selection, ok = QtWidgets.QInputDialog.getItem(
+            self,
+            "Load preset",
+            "Choose preset:",
+            preset_names,
+            0,
+            False,
+        )
+        if not ok or not selection:
+            return
+        preset_path = presets_dir / f"{selection}.json"
+        try:
+            preset_settings = json.loads(preset_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            QtWidgets.QMessageBox.warning(self, "Load preset", "Preset could not be loaded.")
+            return
+        self._apply_settings_snapshot(preset_settings)
 
 
 if __name__ == "__main__":
