@@ -198,52 +198,75 @@ class VpuPanel(QtWidgets.QWidget):
         form.addWidget(resolution_selector, row, 1)
         row += 1
 
+        layout.addLayout(form)
+
+        advanced_toggle = QtWidgets.QToolButton()
+        advanced_toggle.setObjectName("AdvancedSettingsToggle")
+        advanced_toggle.setText("Advanced settings")
+        advanced_toggle.setCheckable(True)
+        advanced_toggle.setChecked(False)
+        advanced_toggle.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        advanced_toggle.setArrowType(QtCore.Qt.RightArrow)
+        advanced_toggle.setCursor(QtCore.Qt.PointingHandCursor)
+        self._advanced_toggle = advanced_toggle
+        layout.addWidget(advanced_toggle)
+
+        advanced_panel = QtWidgets.QWidget()
+        advanced_panel.setVisible(False)
+        advanced_form = QtWidgets.QGridLayout(advanced_panel)
+        advanced_form.setContentsMargins(0, 0, 0, 0)
+        advanced_form.setHorizontalSpacing(12)
+        advanced_form.setVerticalSpacing(10)
+        advanced_form.setColumnStretch(1, 1)
+
+        advanced_row = 0
+
         exposure_slider = self._build_slider()
         auto_exposure_toggle = self._build_toggle("Auto", "Manual")
         self._bind_auto_toggle(auto_exposure_toggle, exposure_slider)
         self._exposure_slider = exposure_slider
         self._auto_exposure_toggle = auto_exposure_toggle
-        form.addWidget(QtWidgets.QLabel("Exposure"), row, 0)
-        form.addWidget(exposure_slider, row, 1)
-        form.addWidget(auto_exposure_toggle, row, 2)
-        row += 1
+        advanced_form.addWidget(QtWidgets.QLabel("Exposure"), advanced_row, 0)
+        advanced_form.addWidget(exposure_slider, advanced_row, 1)
+        advanced_form.addWidget(auto_exposure_toggle, advanced_row, 2)
+        advanced_row += 1
 
         gain_slider = self._build_slider()
         auto_gain_toggle = self._build_toggle("Auto", "Manual")
         self._bind_auto_toggle(auto_gain_toggle, gain_slider)
         self._gain_slider = gain_slider
         self._auto_gain_toggle = auto_gain_toggle
-        form.addWidget(QtWidgets.QLabel("Gain"), row, 0)
-        form.addWidget(gain_slider, row, 1)
-        form.addWidget(auto_gain_toggle, row, 2)
-        row += 1
+        advanced_form.addWidget(QtWidgets.QLabel("Gain"), advanced_row, 0)
+        advanced_form.addWidget(gain_slider, advanced_row, 1)
+        advanced_form.addWidget(auto_gain_toggle, advanced_row, 2)
+        advanced_row += 1
 
         wb_slider = self._build_slider()
         auto_wb_toggle = self._build_toggle("Auto", "Manual")
         self._bind_auto_toggle(auto_wb_toggle, wb_slider)
         self._wb_slider = wb_slider
         self._auto_wb_toggle = auto_wb_toggle
-        form.addWidget(QtWidgets.QLabel("White balance"), row, 0)
-        form.addWidget(wb_slider, row, 1)
-        form.addWidget(auto_wb_toggle, row, 2)
-        row += 1
+        advanced_form.addWidget(QtWidgets.QLabel("White balance"), advanced_row, 0)
+        advanced_form.addWidget(wb_slider, advanced_row, 1)
+        advanced_form.addWidget(auto_wb_toggle, advanced_row, 2)
+        advanced_row += 1
 
         docs_button = QtWidgets.QPushButton("Open camera documentation")
         docs_button.setCursor(QtCore.Qt.PointingHandCursor)
         docs_button.clicked.connect(
             lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://docs.zimo.no/products/camera/"))
         )
-        form.addWidget(QtWidgets.QLabel("Camera docs"), row, 0)
-        form.addWidget(docs_button, row, 1)
-        row += 1
+        advanced_form.addWidget(QtWidgets.QLabel("Camera docs"), advanced_row, 0)
+        advanced_form.addWidget(docs_button, advanced_row, 1)
+        advanced_row += 1
 
         aruco_toggle = self._build_toggle("On", "Off")
         aruco_toggle.toggled.connect(lambda checked: self._update_toggle_label(aruco_toggle, "On", "Off"))
         self._update_toggle_label(aruco_toggle, "On", "Off")
         self._aruco_toggle = aruco_toggle
-        form.addWidget(QtWidgets.QLabel("Enable ArUco"), row, 0)
-        form.addWidget(aruco_toggle, row, 1)
-        row += 1
+        advanced_form.addWidget(QtWidgets.QLabel("Enable ArUco"), advanced_row, 0)
+        advanced_form.addWidget(aruco_toggle, advanced_row, 1)
+        advanced_row += 1
 
         aruco_dict = QtWidgets.QComboBox()
         aruco_dict.addItems(
@@ -256,22 +279,12 @@ class VpuPanel(QtWidgets.QWidget):
             ]
         )
         self._aruco_dict = aruco_dict
-        form.addWidget(QtWidgets.QLabel("ArUco dictionary"), row, 0)
-        form.addWidget(aruco_dict, row, 1)
-        row += 1
+        advanced_form.addWidget(QtWidgets.QLabel("ArUco dictionary"), advanced_row, 0)
+        advanced_form.addWidget(aruco_dict, advanced_row, 1)
 
-        layout.addLayout(form)
-
-        gear_row = QtWidgets.QHBoxLayout()
-        advanced_button = QtWidgets.QPushButton("⚙")
-        advanced_button.setObjectName("GearButton")
-        advanced_button.setCursor(QtCore.Qt.PointingHandCursor)
-        advanced_label = QtWidgets.QLabel("Advanced settings")
-        advanced_label.setObjectName("CardMeta")
-        gear_row.addStretch()
-        gear_row.addWidget(advanced_label)
-        gear_row.addWidget(advanced_button)
-        layout.addLayout(gear_row)
+        self._advanced_settings_panel = advanced_panel
+        advanced_toggle.toggled.connect(self._set_advanced_settings_expanded)
+        layout.addWidget(advanced_panel)
 
         presets_row = QtWidgets.QHBoxLayout()
         apply_button = QtWidgets.QPushButton("Apply")
@@ -323,6 +336,10 @@ class VpuPanel(QtWidgets.QWidget):
         toggle.setChecked(True)
         _sync_state(toggle.isChecked())
         toggle.toggled.connect(_sync_state)
+
+    def _set_advanced_settings_expanded(self, expanded: bool) -> None:
+        self._advanced_settings_panel.setVisible(expanded)
+        self._advanced_toggle.setArrowType(QtCore.Qt.DownArrow if expanded else QtCore.Qt.RightArrow)
 
     @staticmethod
     def _build_status_dot(is_online: bool) -> QtWidgets.QLabel:

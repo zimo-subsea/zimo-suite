@@ -143,6 +143,20 @@ QPushButton#GearButton:hover {
     background-color: #1a1f2a;
 }
 
+QToolButton#AdvancedSettingsToggle {
+    background-color: transparent;
+    border: none;
+    color: #d5d8de;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    padding: 4px 0;
+}
+
+QToolButton#AdvancedSettingsToggle:hover {
+    color: #ffffff;
+}
+
 QCheckBox#ToggleSwitch {
     spacing: 8px;
     font-size: 12px;
