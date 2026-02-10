@@ -1,12 +1,21 @@
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
+from typing import Any
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from zimo.core.api_client import ApiClient
 from zimo.core.module_base import ModuleBase
+
+CAMERA_COUNT = 8
+FPS_OPTIONS = [30, 60]
+RESOLUTION_OPTIONS = ["1920x1080", "1280x720"]
+WHITE_BALANCE_PRESETS = ["auto", "daylight", "cloudy", "incandescent", "fluorescent"]
+ARUCO_DICTIONARIES = ["DICT_4X4_50", "DICT_4X4_100", "DICT_5X5_50", "DICT_6X6_100", "DICT_7X7_250"]
+AI_INPUT_RES_OPTIONS = ["640x360", "960x540"]
 
 
 class VpuModule(ModuleBase):
@@ -17,603 +26,628 @@ class VpuModule(ModuleBase):
 
 
 class VpuPanel(QtWidgets.QWidget):
+    """VPU settings panel with explicit customer-safe controls.
+
+    Units:
+    - exposure.value uses microseconds (us)
+    - gain.value uses dB
+    """
+
     def __init__(self, api: ApiClient) -> None:
         super().__init__()
         self._api = api
-        self._camera_names = [f"Camera {index}" for index in range(1, 9)]
-        self._camera_connected = [True, True, False, True, False, True, True, False]
+        self._settings_file = Path(__file__).with_name("config.json")
+
+        self._config: dict[str, Any] = self._load_or_default_config()
+        self._current_camera_id = int(self._config["ui"]["selected_camera_id"])
+
         self._camera_buttons: list[QtWidgets.QPushButton] = []
-        self._camera_name_edits: list[QtWidgets.QLineEdit] = []
-        self._current_camera_index = 0
-        self._current_camera_label: QtWidgets.QLabel | None = None
-        self._camera_pen_buttons: list[QtWidgets.QPushButton] = []
-        self._settings_file = Path(__file__).with_name("vpu_settings.json")
-        self._camera_settings: dict[str, dict[str, object]] = self._load_settings()
+        self._is_loading_ui = False
+
+        self._enabled_toggle: QtWidgets.QCheckBox | None = None
         self._fps_selector: QtWidgets.QComboBox | None = None
         self._resolution_selector: QtWidgets.QComboBox | None = None
-        self._exposure_slider: QtWidgets.QSlider | None = None
-        self._auto_exposure_toggle: QtWidgets.QCheckBox | None = None
-        self._gain_slider: QtWidgets.QSlider | None = None
-        self._auto_gain_toggle: QtWidgets.QCheckBox | None = None
-        self._wb_slider: QtWidgets.QSlider | None = None
-        self._auto_wb_toggle: QtWidgets.QCheckBox | None = None
-        self._enable_toggle: QtWidgets.QCheckBox | None = None
-        self._aruco_toggle: QtWidgets.QCheckBox | None = None
-        self._aruco_dict: QtWidgets.QComboBox | None = None
 
+        self._exposure_auto_toggle: QtWidgets.QCheckBox | None = None
+        self._exposure_value: QtWidgets.QSpinBox | None = None
+        self._gain_auto_toggle: QtWidgets.QCheckBox | None = None
+        self._gain_value: QtWidgets.QDoubleSpinBox | None = None
+
+        self._wb_auto_toggle: QtWidgets.QCheckBox | None = None
+        self._wb_mode: QtWidgets.QComboBox | None = None
+
+        self._streaming_enabled: QtWidgets.QCheckBox | None = None
+        self._bitrate_mbps: QtWidgets.QSpinBox | None = None
+
+        self._aruco_enabled: QtWidgets.QCheckBox | None = None
+        self._aruco_dictionary: QtWidgets.QComboBox | None = None
+        self._aruco_dictionary_label: QtWidgets.QLabel | None = None
+
+        self._destination_ip: QtWidgets.QLineEdit | None = None
+        self._base_port: QtWidgets.QSpinBox | None = None
+        self._allow_save_load: QtWidgets.QCheckBox | None = None
+
+        self._roi_enabled: QtWidgets.QCheckBox | None = None
+        self._roi_x: QtWidgets.QSpinBox | None = None
+        self._roi_y: QtWidgets.QSpinBox | None = None
+        self._roi_width: QtWidgets.QSpinBox | None = None
+        self._roi_height: QtWidgets.QSpinBox | None = None
+        self._black_level: QtWidgets.QSpinBox | None = None
+        self._keyframe_interval: QtWidgets.QSpinBox | None = None
+
+        self._ai_input_resolution: QtWidgets.QComboBox | None = None
+        self._process_every_n_frames: QtWidgets.QSpinBox | None = None
+        self._overlay_enabled: QtWidgets.QCheckBox | None = None
+        self._cv_advanced_box: QtWidgets.QGroupBox | None = None
+
+        self._save_button: QtWidgets.QPushButton | None = None
+        self._load_button: QtWidgets.QPushButton | None = None
+
+        self._build_ui()
+        self._select_camera(self._current_camera_id)
+
+    def _build_ui(self) -> None:
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(20)
+        layout.setSpacing(16)
 
-        header = QtWidgets.QLabel("Camera Overview")
-        header.setObjectName("PageTitle")
-        subtitle = QtWidgets.QLabel("Monitor the machine vision feed and adjust capture settings.")
+        title = QtWidgets.QLabel("Camera Overview")
+        title.setObjectName("PageTitle")
+        subtitle = QtWidgets.QLabel("Configure per-camera settings and apply changes to active pipelines.")
         subtitle.setObjectName("PageSubtitle")
 
-        layout.addWidget(header)
+        layout.addWidget(title)
         layout.addWidget(subtitle)
-        body_layout = QtWidgets.QHBoxLayout()
-        body_layout.setSpacing(16)
 
-        left_column = QtWidgets.QVBoxLayout()
-        left_column.setSpacing(16)
+        body = QtWidgets.QHBoxLayout()
+        body.setSpacing(16)
 
-        selection_card = self._build_selection_card()
-        status_card = self._build_status_card()
+        left = self._build_camera_selector()
+        right = self._build_settings_panel()
 
-        left_column.addWidget(selection_card, 1)
-        left_column.addWidget(status_card, 1)
-        left_column.addStretch()
-        left_column.addWidget(self._build_status_legend())
+        body.addWidget(left, 1)
+        body.addWidget(right, 2)
 
-        settings_card = self._build_settings_card()
+        layout.addLayout(body)
 
-        body_layout.addLayout(left_column, 1)
-        body_layout.addWidget(settings_card, 2)
-
-        layout.addLayout(body_layout)
-
-        layout.addStretch()
-
-    def _build_selection_card(self) -> QtWidgets.QWidget:
+    def _build_camera_selector(self) -> QtWidgets.QWidget:
         card = QtWidgets.QWidget()
         card.setObjectName("Card")
-        layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(12)
+        card_layout = QtWidgets.QVBoxLayout(card)
+        card_layout.setContentsMargins(20, 20, 20, 20)
+        card_layout.setSpacing(8)
 
-        title = QtWidgets.QLabel("Camera Selection")
-        title.setObjectName("CardTitle")
-        hint = QtWidgets.QLabel("Select a camera to edit its settings.")
-        hint.setObjectName("CardMeta")
-
-        layout.addWidget(title)
-        layout.addWidget(hint)
+        label = QtWidgets.QLabel("Camera Selection")
+        label.setObjectName("CardTitle")
+        card_layout.addWidget(label)
 
         button_group = QtWidgets.QButtonGroup(self)
         button_group.setExclusive(True)
 
-        for index, name in enumerate(self._camera_names):
-            row = QtWidgets.QWidget()
-            row_layout = QtWidgets.QHBoxLayout(row)
-            row_layout.setContentsMargins(0, 0, 0, 0)
-            row_layout.setSpacing(8)
-
-            status_dot = self._build_status_dot(self._camera_connected[index])
-            row_layout.addWidget(status_dot)
-
-            button = QtWidgets.QPushButton(name)
+        for camera_id in range(1, CAMERA_COUNT + 1):
+            button = QtWidgets.QPushButton(f"Camera {camera_id}")
             button.setCheckable(True)
-            button.setCursor(QtCore.Qt.PointingHandCursor)
-            button.clicked.connect(lambda checked, i=index: self._select_camera(i))
-            if index == self._current_camera_index:
-                button.setChecked(True)
-            button_group.addButton(button)
-            row_layout.addWidget(button, 1)
-
-            edit = QtWidgets.QLineEdit(name)
-            edit.setPlaceholderText("Camera name")
-            edit.setVisible(False)
-            edit.editingFinished.connect(lambda i=index: self._apply_camera_rename(i))
-            row_layout.addWidget(edit, 1)
-
-            pen = QtWidgets.QPushButton("✎")
-            pen.setObjectName("SelectionPen")
-            pen.setCursor(QtCore.Qt.PointingHandCursor)
-            pen.setVisible(index == self._current_camera_index)
-            pen.clicked.connect(lambda checked=False, i=index: self._enable_name_edit(i))
-            row_layout.addWidget(pen)
-
-            layout.addWidget(row)
+            button.clicked.connect(lambda _checked, cid=camera_id: self._select_camera(cid))
             self._camera_buttons.append(button)
-            self._camera_name_edits.append(edit)
-            self._camera_pen_buttons.append(pen)
-        layout.addStretch()
+            button_group.addButton(button)
+            card_layout.addWidget(button)
+
+        card_layout.addStretch()
         return card
 
-    def _build_status_card(self) -> QtWidgets.QWidget:
+    def _build_settings_panel(self) -> QtWidgets.QWidget:
         card = QtWidgets.QWidget()
         card.setObjectName("Card")
         layout = QtWidgets.QVBoxLayout(card)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        title = QtWidgets.QLabel("Status")
+        title_row = QtWidgets.QHBoxLayout()
+        title = QtWidgets.QLabel("Settings (General + Advanced)")
         title.setObjectName("CardTitle")
-
+        title_row.addWidget(title)
+        title_row.addStretch()
         docs_button = QtWidgets.QPushButton("Open VPU documentation")
-        docs_button.setCursor(QtCore.Qt.PointingHandCursor)
         docs_button.clicked.connect(
             lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://docs.zimo.no/products/vpu/"))
         )
+        title_row.addWidget(docs_button)
+        layout.addLayout(title_row)
 
-        layout.addWidget(title)
-        layout.addWidget(docs_button)
-        layout.addStretch()
-        return card
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll_body = QtWidgets.QWidget()
+        form = QtWidgets.QVBoxLayout(scroll_body)
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setSpacing(12)
 
-    def _build_settings_card(self) -> QtWidgets.QWidget:
-        card = QtWidgets.QWidget()
-        card.setObjectName("Card")
-        layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(16)
+        form.addWidget(self._build_general_group())
+        form.addWidget(self._build_global_group())
+        form.addWidget(self._build_advanced_group())
 
-        title = QtWidgets.QLabel("Camera Settings")
-        title.setObjectName("CardTitle")
-
-        layout.addWidget(title)
-
-        current_label = QtWidgets.QLabel(self._camera_names[self._current_camera_index])
-        current_label.setObjectName("CardValue")
-        self._current_camera_label = current_label
-        header_row = QtWidgets.QHBoxLayout()
-        header_row.addWidget(current_label)
-        header_row.addStretch()
-        enable_toggle = self._build_toggle("On", "Off")
-        enable_toggle.toggled.connect(lambda checked: self._update_toggle_label(enable_toggle, "On", "Off"))
-        self._update_toggle_label(enable_toggle, "On", "Off")
-        self._enable_toggle = enable_toggle
-        header_row.addWidget(enable_toggle)
-        layout.addLayout(header_row)
-
-        form = QtWidgets.QGridLayout()
-        form.setHorizontalSpacing(12)
-        form.setVerticalSpacing(10)
-        form.setColumnStretch(1, 1)
-
-        row = 0
-
-        fps_selector = QtWidgets.QComboBox()
-        fps_selector.addItems(["24 FPS", "30 FPS", "60 FPS", "90 FPS", "120 FPS"])
-        self._fps_selector = fps_selector
-        form.addWidget(QtWidgets.QLabel("FPS"), row, 0)
-        form.addWidget(fps_selector, row, 1)
-        row += 1
-
-        resolution_selector = QtWidgets.QComboBox()
-        resolution_selector.addItems(["1280 × 720", "1920 × 1080", "2560 × 1440", "3840 × 2160 (4K)"])
-        self._resolution_selector = resolution_selector
-        form.addWidget(QtWidgets.QLabel("Resolution"), row, 0)
-        form.addWidget(resolution_selector, row, 1)
-        row += 1
-
-        exposure_slider = self._build_slider()
-        auto_exposure_toggle = self._build_toggle("Auto", "Manual")
-        self._bind_auto_toggle(auto_exposure_toggle, exposure_slider)
-        self._exposure_slider = exposure_slider
-        self._auto_exposure_toggle = auto_exposure_toggle
-        form.addWidget(QtWidgets.QLabel("Exposure"), row, 0)
-        form.addWidget(exposure_slider, row, 1)
-        form.addWidget(auto_exposure_toggle, row, 2)
-        row += 1
-
-        gain_slider = self._build_slider()
-        auto_gain_toggle = self._build_toggle("Auto", "Manual")
-        self._bind_auto_toggle(auto_gain_toggle, gain_slider)
-        self._gain_slider = gain_slider
-        self._auto_gain_toggle = auto_gain_toggle
-        form.addWidget(QtWidgets.QLabel("Gain"), row, 0)
-        form.addWidget(gain_slider, row, 1)
-        form.addWidget(auto_gain_toggle, row, 2)
-        row += 1
-
-        wb_slider = self._build_slider()
-        auto_wb_toggle = self._build_toggle("Auto", "Manual")
-        self._bind_auto_toggle(auto_wb_toggle, wb_slider)
-        self._wb_slider = wb_slider
-        self._auto_wb_toggle = auto_wb_toggle
-        form.addWidget(QtWidgets.QLabel("White balance"), row, 0)
-        form.addWidget(wb_slider, row, 1)
-        form.addWidget(auto_wb_toggle, row, 2)
-        row += 1
-
-        docs_button = QtWidgets.QPushButton("Open camera documentation")
-        docs_button.setCursor(QtCore.Qt.PointingHandCursor)
-        docs_button.clicked.connect(
-            lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://docs.zimo.no/products/camera/"))
-        )
-        form.addWidget(QtWidgets.QLabel("Camera docs"), row, 0)
-        form.addWidget(docs_button, row, 1)
-        row += 1
-
-        aruco_toggle = self._build_toggle("On", "Off")
-        aruco_toggle.toggled.connect(lambda checked: self._update_toggle_label(aruco_toggle, "On", "Off"))
-        self._update_toggle_label(aruco_toggle, "On", "Off")
-        self._aruco_toggle = aruco_toggle
-        form.addWidget(QtWidgets.QLabel("Enable ArUco"), row, 0)
-        form.addWidget(aruco_toggle, row, 1)
-        row += 1
-
-        aruco_dict = QtWidgets.QComboBox()
-        aruco_dict.addItems(
-            [
-                "DICT_4X4_50",
-                "DICT_4X4_100",
-                "DICT_5X5_50",
-                "DICT_6X6_100",
-                "DICT_7X7_250",
-            ]
-        )
-        self._aruco_dict = aruco_dict
-        form.addWidget(QtWidgets.QLabel("ArUco dictionary"), row, 0)
-        form.addWidget(aruco_dict, row, 1)
-        row += 1
-
-        layout.addLayout(form)
-
-        gear_row = QtWidgets.QHBoxLayout()
-        advanced_button = QtWidgets.QPushButton("⚙")
-        advanced_button.setObjectName("GearButton")
-        advanced_button.setCursor(QtCore.Qt.PointingHandCursor)
-        advanced_label = QtWidgets.QLabel("Advanced settings")
-        advanced_label.setObjectName("CardMeta")
-        gear_row.addStretch()
-        gear_row.addWidget(advanced_label)
-        gear_row.addWidget(advanced_button)
-        layout.addLayout(gear_row)
-
-        presets_row = QtWidgets.QHBoxLayout()
+        controls_row = QtWidgets.QHBoxLayout()
         apply_button = QtWidgets.QPushButton("Apply")
-        apply_button.setCursor(QtCore.Qt.PointingHandCursor)
         apply_button.clicked.connect(self._apply_settings)
-        save_button = QtWidgets.QPushButton("Save setup")
-        save_button.setCursor(QtCore.Qt.PointingHandCursor)
-        save_button.clicked.connect(self._save_preset)
-        load_button = QtWidgets.QPushButton("Load preset")
-        load_button.setCursor(QtCore.Qt.PointingHandCursor)
-        load_button.clicked.connect(self._load_preset)
-        presets_row.addWidget(apply_button)
-        presets_row.addWidget(save_button)
-        presets_row.addWidget(load_button)
-        presets_row.addStretch()
-        layout.addLayout(presets_row)
-        layout.addStretch()
 
-        self._apply_loaded_settings()
+        self._save_button = QtWidgets.QPushButton("Save setup")
+        self._save_button.clicked.connect(self._save_preset)
 
+        self._load_button = QtWidgets.QPushButton("Load preset")
+        self._load_button.clicked.connect(self._load_preset)
+
+        controls_row.addWidget(apply_button)
+        controls_row.addWidget(self._save_button)
+        controls_row.addWidget(self._load_button)
+        controls_row.addStretch()
+
+        form.addLayout(controls_row)
+        form.addStretch()
+
+        scroll.setWidget(scroll_body)
+        layout.addWidget(scroll)
         return card
 
-    @staticmethod
-    def _build_slider() -> QtWidgets.QSlider:
-        slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        slider.setRange(0, 100)
-        slider.setValue(40)
-        return slider
+    def _build_general_group(self) -> QtWidgets.QGroupBox:
+        group = QtWidgets.QGroupBox("General settings (per selected camera)")
+        form = QtWidgets.QFormLayout(group)
+
+        self._enabled_toggle = self._build_toggle("On", "Off")
+        form.addRow("Camera", self._enabled_toggle)
+
+        self._fps_selector = QtWidgets.QComboBox()
+        self._fps_selector.addItems([str(v) for v in FPS_OPTIONS])
+        form.addRow("FPS (restart required)", self._fps_selector)
+
+        self._resolution_selector = QtWidgets.QComboBox()
+        self._resolution_selector.addItems(RESOLUTION_OPTIONS)
+        form.addRow("Resolution (restart required)", self._resolution_selector)
+
+        exposure_row = QtWidgets.QHBoxLayout()
+        self._exposure_auto_toggle = self._build_toggle("Auto", "Manual")
+        self._exposure_value = QtWidgets.QSpinBox()
+        self._exposure_value.setRange(1, 1_000_000)
+        self._exposure_value.setSuffix(" us")
+        exposure_row.addWidget(self._exposure_auto_toggle)
+        exposure_row.addWidget(self._exposure_value)
+        exposure_row.addStretch()
+        exposure_widget = QtWidgets.QWidget()
+        exposure_widget.setLayout(exposure_row)
+        form.addRow("Exposure", exposure_widget)
+
+        gain_row = QtWidgets.QHBoxLayout()
+        self._gain_auto_toggle = self._build_toggle("Auto", "Manual")
+        self._gain_value = QtWidgets.QDoubleSpinBox()
+        self._gain_value.setRange(0.0, 48.0)
+        self._gain_value.setSingleStep(0.1)
+        self._gain_value.setDecimals(1)
+        self._gain_value.setSuffix(" dB")
+        gain_row.addWidget(self._gain_auto_toggle)
+        gain_row.addWidget(self._gain_value)
+        gain_row.addStretch()
+        gain_widget = QtWidgets.QWidget()
+        gain_widget.setLayout(gain_row)
+        form.addRow("Gain", gain_widget)
+
+        wb_row = QtWidgets.QHBoxLayout()
+        self._wb_auto_toggle = self._build_toggle("Auto", "Manual")
+        self._wb_mode = QtWidgets.QComboBox()
+        self._wb_mode.addItems(WHITE_BALANCE_PRESETS)
+        wb_row.addWidget(self._wb_auto_toggle)
+        wb_row.addWidget(self._wb_mode)
+        wb_row.addStretch()
+        wb_widget = QtWidgets.QWidget()
+        wb_widget.setLayout(wb_row)
+        form.addRow("White balance (preset mode)", wb_widget)
+
+        streaming_row = QtWidgets.QHBoxLayout()
+        self._streaming_enabled = self._build_toggle("On", "Off")
+        self._bitrate_mbps = QtWidgets.QSpinBox()
+        self._bitrate_mbps.setRange(1, 200)
+        self._bitrate_mbps.setSuffix(" Mbps")
+        transport_label = QtWidgets.QLabel("transport = rtp_udp (locked)")
+        transport_label.setObjectName("CardMeta")
+        streaming_row.addWidget(self._streaming_enabled)
+        streaming_row.addWidget(self._bitrate_mbps)
+        streaming_row.addWidget(transport_label)
+        streaming_row.addStretch()
+        streaming_widget = QtWidgets.QWidget()
+        streaming_widget.setLayout(streaming_row)
+        form.addRow("Streaming", streaming_widget)
+
+        cv_row = QtWidgets.QHBoxLayout()
+        self._aruco_enabled = self._build_toggle("On", "Off")
+        self._aruco_dictionary_label = QtWidgets.QLabel("ArUco dictionary")
+        self._aruco_dictionary = QtWidgets.QComboBox()
+        self._aruco_dictionary.addItems(ARUCO_DICTIONARIES)
+        cv_row.addWidget(self._aruco_enabled)
+        cv_row.addWidget(self._aruco_dictionary_label)
+        cv_row.addWidget(self._aruco_dictionary)
+        cv_row.addStretch()
+        cv_widget = QtWidgets.QWidget()
+        cv_widget.setLayout(cv_row)
+        form.addRow("CV", cv_widget)
+
+        self._connect_general_signals()
+        return group
+
+    def _build_global_group(self) -> QtWidgets.QGroupBox:
+        group = QtWidgets.QGroupBox("Global settings")
+        form = QtWidgets.QFormLayout(group)
+
+        self._destination_ip = QtWidgets.QLineEdit()
+        self._base_port = QtWidgets.QSpinBox()
+        self._base_port.setRange(1, 65535)
+        self._allow_save_load = self._build_toggle("Enabled", "Disabled")
+
+        form.addRow("Destination IP", self._destination_ip)
+        form.addRow("Base port", self._base_port)
+        form.addRow("Presets save/load", self._allow_save_load)
+
+        self._destination_ip.editingFinished.connect(self._sync_current_camera_from_ui)
+        self._base_port.valueChanged.connect(self._sync_current_camera_from_ui)
+        self._allow_save_load.toggled.connect(self._sync_current_camera_from_ui)
+        return group
+
+    def _build_advanced_group(self) -> QtWidgets.QGroupBox:
+        group = QtWidgets.QGroupBox("Advanced settings")
+        outer = QtWidgets.QVBoxLayout(group)
+
+        sensor_box = QtWidgets.QGroupBox("Sensor")
+        sensor_form = QtWidgets.QFormLayout(sensor_box)
+        self._roi_enabled = self._build_toggle("On", "Off")
+        sensor_form.addRow("ROI enabled (restart required)", self._roi_enabled)
+
+        roi_row = QtWidgets.QHBoxLayout()
+        self._roi_x = QtWidgets.QSpinBox()
+        self._roi_y = QtWidgets.QSpinBox()
+        self._roi_width = QtWidgets.QSpinBox()
+        self._roi_height = QtWidgets.QSpinBox()
+        for spin in [self._roi_x, self._roi_y, self._roi_width, self._roi_height]:
+            spin.setRange(0, 8192)
+            spin.setFixedWidth(90)
+        self._roi_width.setMinimum(1)
+        self._roi_height.setMinimum(1)
+
+        roi_row.addWidget(QtWidgets.QLabel("x"))
+        roi_row.addWidget(self._roi_x)
+        roi_row.addWidget(QtWidgets.QLabel("y"))
+        roi_row.addWidget(self._roi_y)
+        roi_row.addWidget(QtWidgets.QLabel("w"))
+        roi_row.addWidget(self._roi_width)
+        roi_row.addWidget(QtWidgets.QLabel("h"))
+        roi_row.addWidget(self._roi_height)
+        roi_row.addStretch()
+
+        roi_widget = QtWidgets.QWidget()
+        roi_widget.setLayout(roi_row)
+        sensor_form.addRow("ROI", roi_widget)
+
+        self._black_level = QtWidgets.QSpinBox()
+        self._black_level.setRange(0, 4095)
+        sensor_form.addRow("Black level", self._black_level)
+
+        encoder_box = QtWidgets.QGroupBox("Encoder")
+        encoder_form = QtWidgets.QFormLayout(encoder_box)
+
+        self._keyframe_interval = QtWidgets.QSpinBox()
+        self._keyframe_interval.setRange(1, 300)
+        encoder_form.addRow("Keyframe interval (GOP)", self._keyframe_interval)
+
+        force_idr = QtWidgets.QPushButton("Force IDR")
+        force_idr.clicked.connect(self._force_idr)
+        encoder_form.addRow("Action", force_idr)
+
+        self._cv_advanced_box = QtWidgets.QGroupBox("CV advanced")
+        cv_adv_form = QtWidgets.QFormLayout(self._cv_advanced_box)
+
+        self._ai_input_resolution = QtWidgets.QComboBox()
+        self._ai_input_resolution.addItems(AI_INPUT_RES_OPTIONS)
+
+        self._process_every_n_frames = QtWidgets.QSpinBox()
+        self._process_every_n_frames.setRange(1, 32)
+
+        self._overlay_enabled = self._build_toggle("On", "Off")
+
+        cv_adv_form.addRow("AI input resolution", self._ai_input_resolution)
+        cv_adv_form.addRow("Process every N frames", self._process_every_n_frames)
+        cv_adv_form.addRow("Overlay", self._overlay_enabled)
+
+        outer.addWidget(sensor_box)
+        outer.addWidget(encoder_box)
+        outer.addWidget(self._cv_advanced_box)
+
+        self._connect_advanced_signals()
+        return group
+
+    def _connect_general_signals(self) -> None:
+        for signal, handler in [
+            (self._enabled_toggle.toggled, self._sync_current_camera_from_ui),
+            (self._fps_selector.currentTextChanged, self._sync_current_camera_from_ui),
+            (self._resolution_selector.currentTextChanged, self._sync_current_camera_from_ui),
+            (self._exposure_auto_toggle.toggled, self._sync_current_camera_from_ui),
+            (self._exposure_value.valueChanged, self._sync_current_camera_from_ui),
+            (self._gain_auto_toggle.toggled, self._sync_current_camera_from_ui),
+            (self._gain_value.valueChanged, self._sync_current_camera_from_ui),
+            (self._wb_auto_toggle.toggled, self._sync_current_camera_from_ui),
+            (self._wb_mode.currentTextChanged, self._sync_current_camera_from_ui),
+            (self._streaming_enabled.toggled, self._sync_current_camera_from_ui),
+            (self._bitrate_mbps.valueChanged, self._sync_current_camera_from_ui),
+            (self._aruco_enabled.toggled, self._sync_current_camera_from_ui),
+            (self._aruco_dictionary.currentTextChanged, self._sync_current_camera_from_ui),
+        ]:
+            signal.connect(handler)
+
+    def _connect_advanced_signals(self) -> None:
+        for signal, handler in [
+            (self._roi_enabled.toggled, self._sync_current_camera_from_ui),
+            (self._roi_x.valueChanged, self._sync_current_camera_from_ui),
+            (self._roi_y.valueChanged, self._sync_current_camera_from_ui),
+            (self._roi_width.valueChanged, self._sync_current_camera_from_ui),
+            (self._roi_height.valueChanged, self._sync_current_camera_from_ui),
+            (self._black_level.valueChanged, self._sync_current_camera_from_ui),
+            (self._keyframe_interval.valueChanged, self._sync_current_camera_from_ui),
+            (self._ai_input_resolution.currentTextChanged, self._sync_current_camera_from_ui),
+            (self._process_every_n_frames.valueChanged, self._sync_current_camera_from_ui),
+            (self._overlay_enabled.toggled, self._sync_current_camera_from_ui),
+        ]:
+            signal.connect(handler)
 
     @staticmethod
     def _build_toggle(label_on: str, label_off: str) -> QtWidgets.QCheckBox:
         toggle = QtWidgets.QCheckBox(label_on)
-        toggle.setObjectName("ToggleSwitch")
-        toggle.setCursor(QtCore.Qt.PointingHandCursor)
-        toggle.setChecked(True)
         toggle.setProperty("label_on", label_on)
         toggle.setProperty("label_off", label_off)
+        toggle.setChecked(True)
+
+        def _sync_label(checked: bool) -> None:
+            toggle.setText(label_on if checked else label_off)
+
+        toggle.toggled.connect(_sync_label)
+        _sync_label(True)
         return toggle
 
-    @staticmethod
-    def _update_toggle_label(toggle: QtWidgets.QCheckBox, label_on: str, label_off: str) -> None:
-        toggle.setText(label_on if toggle.isChecked() else label_off)
+    def _camera_key(self, camera_id: int | None = None) -> str:
+        cid = camera_id if camera_id is not None else self._current_camera_id
+        return f"camera_{cid}"
 
-    def _bind_auto_toggle(self, toggle: QtWidgets.QCheckBox, slider: QtWidgets.QSlider) -> None:
-        def _sync_state(checked: bool) -> None:
-            toggle.setText("Auto" if checked else "Manual")
-            slider.setEnabled(not checked)
-
-        toggle.setChecked(True)
-        _sync_state(toggle.isChecked())
-        toggle.toggled.connect(_sync_state)
-
-    @staticmethod
-    def _build_status_dot(is_online: bool) -> QtWidgets.QLabel:
-        dot = QtWidgets.QLabel("●")
-        dot.setObjectName("StatusDot")
-        dot.setProperty("severity", "success" if is_online else "danger")
-        return dot
-
-    def _build_status_legend(self) -> QtWidgets.QWidget:
-        legend = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout(legend)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
-
-        title = QtWidgets.QLabel("Status legend:")
-        title.setObjectName("CardMeta")
-
-        online_row = QtWidgets.QWidget()
-        online_layout = QtWidgets.QHBoxLayout(online_row)
-        online_layout.setContentsMargins(0, 0, 0, 0)
-        online_layout.setSpacing(8)
-        online_dot = self._build_status_dot(True)
-        online_label = QtWidgets.QLabel("Connected")
-        online_label.setObjectName("CardMeta")
-        online_layout.addWidget(online_dot)
-        online_layout.addWidget(online_label)
-
-        offline_row = QtWidgets.QWidget()
-        offline_layout = QtWidgets.QHBoxLayout(offline_row)
-        offline_layout.setContentsMargins(0, 0, 0, 0)
-        offline_layout.setSpacing(8)
-        offline_dot = self._build_status_dot(False)
-        offline_label = QtWidgets.QLabel("Disconnected")
-        offline_label.setObjectName("CardMeta")
-        offline_layout.addWidget(offline_dot)
-        offline_layout.addWidget(offline_label)
-
-        layout.addWidget(title)
-        layout.addWidget(online_row)
-        layout.addWidget(offline_row)
-        return legend
-
-    def _select_camera(self, index: int) -> None:
-        self._current_camera_index = index
-        if self._current_camera_label is not None:
-            self._current_camera_label.setText(self._camera_names[index])
-        for button_index, button in enumerate(self._camera_buttons):
-            button.setChecked(button_index == index)
-        for pen_index, pen in enumerate(self._camera_pen_buttons):
-            pen.setVisible(pen_index == index)
-        for edit_index, edit in enumerate(self._camera_name_edits):
-            edit.setText(self._camera_names[edit_index])
-            edit.setVisible(False)
-            self._camera_buttons[edit_index].setVisible(True)
-        self._apply_loaded_settings()
-
-    def _enable_name_edit(self, index: int) -> None:
-        edit = self._camera_name_edits[index]
-        edit.setVisible(True)
-        self._camera_buttons[index].setVisible(False)
-        edit.setFocus()
-        edit.selectAll()
-
-    def _apply_camera_rename(self, index: int) -> None:
-        edit = self._camera_name_edits[index]
-        new_name = edit.text().strip()
-        if not new_name:
-            edit.setText(self._camera_names[index])
-            new_name = self._camera_names[index]
-        self._camera_names[index] = new_name
-        self._camera_buttons[index].setText(new_name)
-        edit.setText(new_name)
-        edit.setVisible(False)
-        self._camera_buttons[index].setVisible(True)
-        if self._current_camera_label is not None and index == self._current_camera_index:
-            self._current_camera_label.setText(new_name)
-
-    def _load_settings(self) -> dict[str, dict[str, object]]:
+    def _load_or_default_config(self) -> dict[str, Any]:
+        base = self._default_config()
         if not self._settings_file.exists():
-            return {}
+            return base
         try:
-            return json.loads(self._settings_file.read_text(encoding="utf-8"))
+            raw = json.loads(self._settings_file.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
-            return {}
+            return base
+        return self._merge_with_defaults(raw, base)
+
+    def _default_config(self) -> dict[str, Any]:
+        config: dict[str, Any] = {
+            "network": {"destination_ip": "239.0.0.1", "base_port": 5000},
+            "ui": {"selected_camera_id": 1},
+            "presets": {"allow_save_load": True},
+            "cameras": {},
+        }
+        for camera_id in range(1, CAMERA_COUNT + 1):
+            config["cameras"][self._camera_key(camera_id)] = self._default_camera_settings()
+        return config
 
     @staticmethod
-    def _default_settings() -> dict[str, object]:
+    def _default_camera_settings() -> dict[str, Any]:
         return {
             "enabled": True,
-            "fps": "30 FPS",
-            "resolution": "1920 × 1080",
-            "exposure": {"value": 40, "auto": True},
-            "gain": {"value": 40, "auto": True},
-            "white_balance": {"value": 40, "auto": True},
-            "aruco": {"enabled": True, "dictionary": "DICT_4X4_50"},
+            "fps": 30,
+            "resolution": "1920x1080",
+            "exposure": {"auto": True, "value": 10000},
+            "gain": {"auto": True, "value": 8.0},
+            "white_balance": {"auto": True, "mode": "auto"},
+            "streaming": {"enabled": True, "bitrate_mbps": 8, "transport": "rtp_udp"},
+            "cv": {"aruco_enabled": True, "aruco_dictionary": "DICT_4X4_50"},
+            "sensor": {
+                "roi_enabled": False,
+                "roi": {"x": 0, "y": 0, "width": 1920, "height": 1080},
+                "black_level": 16,
+            },
+            "encoder": {"keyframe_interval": 30},
+            "cv_advanced": {
+                "ai_input_resolution": "640x360",
+                "process_every_n_frames": 1,
+                "overlay_enabled": True,
+            },
         }
 
-    def _camera_key(self, index: int | None = None) -> str:
-        if index is None:
-            index = self._current_camera_index
-        return f"camera_{index + 1}"
+    def _merge_with_defaults(self, source: dict[str, Any], defaults: dict[str, Any]) -> dict[str, Any]:
+        merged = copy.deepcopy(defaults)
+        for key, value in source.items():
+            if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key] = self._merge_with_defaults(value, merged[key])
+            else:
+                merged[key] = value
+
+        camera_nodes = merged.get("cameras", {})
+        for camera_id in range(1, CAMERA_COUNT + 1):
+            cam_key = self._camera_key(camera_id)
+            if cam_key not in camera_nodes:
+                camera_nodes[cam_key] = self._default_camera_settings()
+        merged["cameras"] = camera_nodes
+
+        selected_id = int(merged.get("ui", {}).get("selected_camera_id", 1))
+        merged["ui"]["selected_camera_id"] = min(max(selected_id, 1), CAMERA_COUNT)
+        return merged
+
+    def _select_camera(self, camera_id: int) -> None:
+        self._sync_current_camera_from_ui()
+        self._current_camera_id = camera_id
+        self._config["ui"]["selected_camera_id"] = camera_id
+
+        for index, button in enumerate(self._camera_buttons, start=1):
+            button.setChecked(index == camera_id)
+
+        self._load_camera_into_ui(camera_id)
+
+    def _load_camera_into_ui(self, camera_id: int) -> None:
+        camera = self._config["cameras"][self._camera_key(camera_id)]
+        self._is_loading_ui = True
+
+        self._enabled_toggle.setChecked(bool(camera["enabled"]))
+        self._fps_selector.setCurrentText(str(camera["fps"]))
+        self._resolution_selector.setCurrentText(str(camera["resolution"]))
+
+        self._exposure_auto_toggle.setChecked(bool(camera["exposure"]["auto"]))
+        self._exposure_value.setValue(int(camera["exposure"]["value"]))
+        self._exposure_value.setEnabled(not self._exposure_auto_toggle.isChecked())
+
+        self._gain_auto_toggle.setChecked(bool(camera["gain"]["auto"]))
+        self._gain_value.setValue(float(camera["gain"]["value"]))
+        self._gain_value.setEnabled(not self._gain_auto_toggle.isChecked())
+
+        self._wb_auto_toggle.setChecked(bool(camera["white_balance"]["auto"]))
+        self._wb_mode.setCurrentText(str(camera["white_balance"]["mode"]))
+
+        self._streaming_enabled.setChecked(bool(camera["streaming"]["enabled"]))
+        self._bitrate_mbps.setValue(int(camera["streaming"]["bitrate_mbps"]))
+
+        self._aruco_enabled.setChecked(bool(camera["cv"]["aruco_enabled"]))
+        self._aruco_dictionary.setCurrentText(str(camera["cv"]["aruco_dictionary"]))
+
+        roi = camera["sensor"]["roi"]
+        self._roi_enabled.setChecked(bool(camera["sensor"]["roi_enabled"]))
+        self._roi_x.setValue(int(roi["x"]))
+        self._roi_y.setValue(int(roi["y"]))
+        self._roi_width.setValue(int(roi["width"]))
+        self._roi_height.setValue(int(roi["height"]))
+        self._black_level.setValue(int(camera["sensor"]["black_level"]))
+
+        self._keyframe_interval.setValue(int(camera["encoder"]["keyframe_interval"]))
+
+        self._ai_input_resolution.setCurrentText(str(camera["cv_advanced"]["ai_input_resolution"]))
+        self._process_every_n_frames.setValue(int(camera["cv_advanced"]["process_every_n_frames"]))
+        self._overlay_enabled.setChecked(bool(camera["cv_advanced"]["overlay_enabled"]))
+
+        self._destination_ip.setText(str(self._config["network"]["destination_ip"]))
+        self._base_port.setValue(int(self._config["network"]["base_port"]))
+        self._allow_save_load.setChecked(bool(self._config["presets"]["allow_save_load"]))
+
+        self._sync_dynamic_visibility(camera)
+        self._is_loading_ui = False
+
+    def _sync_dynamic_visibility(self, camera: dict[str, Any] | None = None) -> None:
+        if camera is None:
+            camera = self._config["cameras"][self._camera_key()]
+
+        exposure_auto = bool(camera["exposure"]["auto"])
+        gain_auto = bool(camera["gain"]["auto"])
+        aruco_enabled = bool(camera["cv"]["aruco_enabled"])
+        allow_presets = bool(self._config["presets"]["allow_save_load"])
+
+        self._exposure_value.setEnabled(not exposure_auto)
+        self._gain_value.setEnabled(not gain_auto)
+        self._aruco_dictionary.setVisible(aruco_enabled)
+        self._aruco_dictionary_label.setVisible(aruco_enabled)
+        self._cv_advanced_box.setVisible(aruco_enabled)
+
+        self._save_button.setEnabled(allow_presets)
+        self._load_button.setEnabled(allow_presets)
+
+    def _sync_current_camera_from_ui(self, *_args: object) -> None:
+        if self._is_loading_ui:
+            return
+
+        camera = self._config["cameras"][self._camera_key()]
+        camera["enabled"] = bool(self._enabled_toggle.isChecked())
+        camera["fps"] = int(self._fps_selector.currentText())
+        camera["resolution"] = self._resolution_selector.currentText()
+
+        camera["exposure"]["auto"] = bool(self._exposure_auto_toggle.isChecked())
+        camera["exposure"]["value"] = int(self._exposure_value.value())
+
+        camera["gain"]["auto"] = bool(self._gain_auto_toggle.isChecked())
+        camera["gain"]["value"] = float(self._gain_value.value())
+
+        camera["white_balance"]["auto"] = bool(self._wb_auto_toggle.isChecked())
+        camera["white_balance"]["mode"] = self._wb_mode.currentText()
+
+        camera["streaming"]["enabled"] = bool(self._streaming_enabled.isChecked())
+        camera["streaming"]["bitrate_mbps"] = int(self._bitrate_mbps.value())
+        camera["streaming"]["transport"] = "rtp_udp"
+
+        camera["cv"]["aruco_enabled"] = bool(self._aruco_enabled.isChecked())
+        camera["cv"]["aruco_dictionary"] = self._aruco_dictionary.currentText()
+
+        camera["sensor"]["roi_enabled"] = bool(self._roi_enabled.isChecked())
+        camera["sensor"]["roi"] = {
+            "x": int(self._roi_x.value()),
+            "y": int(self._roi_y.value()),
+            "width": int(self._roi_width.value()),
+            "height": int(self._roi_height.value()),
+        }
+        camera["sensor"]["black_level"] = int(self._black_level.value())
+
+        camera["encoder"]["keyframe_interval"] = int(self._keyframe_interval.value())
+
+        camera["cv_advanced"]["ai_input_resolution"] = self._ai_input_resolution.currentText()
+        camera["cv_advanced"]["process_every_n_frames"] = int(self._process_every_n_frames.value())
+        camera["cv_advanced"]["overlay_enabled"] = bool(self._overlay_enabled.isChecked())
+
+        self._config["network"]["destination_ip"] = self._destination_ip.text().strip()
+        self._config["network"]["base_port"] = int(self._base_port.value())
+        self._config["presets"]["allow_save_load"] = bool(self._allow_save_load.isChecked())
+        self._config["ui"]["selected_camera_id"] = self._current_camera_id
+
+        self._sync_dynamic_visibility(camera)
 
     def _apply_settings(self) -> None:
-        if self._fps_selector is None or self._resolution_selector is None:
-            return
-        settings = {
-            "name": self._camera_names[self._current_camera_index],
-            "enabled": bool(self._enable_toggle and self._enable_toggle.isChecked()),
-            "fps": self._fps_selector.currentText(),
-            "resolution": self._resolution_selector.currentText(),
-            "exposure": {
-                "value": self._exposure_slider.value() if self._exposure_slider else 0,
-                "auto": bool(self._auto_exposure_toggle and self._auto_exposure_toggle.isChecked()),
-            },
-            "gain": {
-                "value": self._gain_slider.value() if self._gain_slider else 0,
-                "auto": bool(self._auto_gain_toggle and self._auto_gain_toggle.isChecked()),
-            },
-            "white_balance": {
-                "value": self._wb_slider.value() if self._wb_slider else 0,
-                "auto": bool(self._auto_wb_toggle and self._auto_wb_toggle.isChecked()),
-            },
-            "aruco": {
-                "enabled": bool(self._aruco_toggle and self._aruco_toggle.isChecked()),
-                "dictionary": self._aruco_dict.currentText() if self._aruco_dict else "",
-            },
-        }
-        self._camera_settings[self._camera_key()] = settings
-        self._settings_file.write_text(
-            json.dumps(self._camera_settings, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        self._sync_current_camera_from_ui()
+        self._settings_file.write_text(json.dumps(self._config, indent=2, ensure_ascii=False), encoding="utf-8")
+        self._api.apply_vpu_configuration(self._config)
 
-    def _apply_loaded_settings(self) -> None:
-        settings = self._camera_settings.get(self._camera_key(), {})
-        if not settings:
-            settings = self._default_settings()
-        if not settings:
-            return
-        name = settings.get("name")
-        if isinstance(name, str) and name:
-            self._camera_names[self._current_camera_index] = name
-            if self._current_camera_label is not None:
-                self._current_camera_label.setText(name)
-            button = self._camera_buttons[self._current_camera_index]
-            button.setText(name)
-            edit = self._camera_name_edits[self._current_camera_index]
-            edit.setText(name)
-        if self._fps_selector is not None:
-            self._fps_selector.setCurrentText(settings.get("fps", self._fps_selector.currentText()))
-        if self._resolution_selector is not None:
-            self._resolution_selector.setCurrentText(
-                settings.get("resolution", self._resolution_selector.currentText())
-            )
-        if self._enable_toggle is not None:
-            self._enable_toggle.setChecked(bool(settings.get("enabled", True)))
-            self._update_toggle_label(self._enable_toggle, "On", "Off")
-        exposure = settings.get("exposure", {})
-        if self._exposure_slider is not None:
-            self._exposure_slider.setValue(int(exposure.get("value", self._exposure_slider.value())))
-        if self._auto_exposure_toggle is not None:
-            self._auto_exposure_toggle.setChecked(bool(exposure.get("auto", True)))
-        gain = settings.get("gain", {})
-        if self._gain_slider is not None:
-            self._gain_slider.setValue(int(gain.get("value", self._gain_slider.value())))
-        if self._auto_gain_toggle is not None:
-            self._auto_gain_toggle.setChecked(bool(gain.get("auto", True)))
-        white_balance = settings.get("white_balance", {})
-        if self._wb_slider is not None:
-            self._wb_slider.setValue(int(white_balance.get("value", self._wb_slider.value())))
-        if self._auto_wb_toggle is not None:
-            self._auto_wb_toggle.setChecked(bool(white_balance.get("auto", True)))
-        aruco = settings.get("aruco", {})
-        if self._aruco_toggle is not None:
-            self._aruco_toggle.setChecked(bool(aruco.get("enabled", True)))
-            self._update_toggle_label(self._aruco_toggle, "On", "Off")
-        if self._aruco_dict is not None:
-            self._aruco_dict.setCurrentText(aruco.get("dictionary", self._aruco_dict.currentText()))
-
-    def _collect_settings(self, include_name: bool = True) -> dict[str, object]:
-        base = {
-            "enabled": bool(self._enable_toggle and self._enable_toggle.isChecked()),
-            "fps": self._fps_selector.currentText() if self._fps_selector else "30 FPS",
-            "resolution": self._resolution_selector.currentText() if self._resolution_selector else "1920 × 1080",
-            "exposure": {
-                "value": self._exposure_slider.value() if self._exposure_slider else 0,
-                "auto": bool(self._auto_exposure_toggle and self._auto_exposure_toggle.isChecked()),
-            },
-            "gain": {
-                "value": self._gain_slider.value() if self._gain_slider else 0,
-                "auto": bool(self._auto_gain_toggle and self._auto_gain_toggle.isChecked()),
-            },
-            "white_balance": {
-                "value": self._wb_slider.value() if self._wb_slider else 0,
-                "auto": bool(self._auto_wb_toggle and self._auto_wb_toggle.isChecked()),
-            },
-            "aruco": {
-                "enabled": bool(self._aruco_toggle and self._aruco_toggle.isChecked()),
-                "dictionary": self._aruco_dict.currentText() if self._aruco_dict else "",
-            },
-        }
-        if include_name:
-            base["name"] = self._camera_names[self._current_camera_index]
-        return base
-
-    def _apply_settings_snapshot(self, settings: dict[str, object]) -> None:
-        if self._enable_toggle is not None:
-            self._enable_toggle.setChecked(bool(settings.get("enabled", True)))
-            self._update_toggle_label(self._enable_toggle, "On", "Off")
-        if self._fps_selector is not None:
-            self._fps_selector.setCurrentText(str(settings.get("fps", "30 FPS")))
-        if self._resolution_selector is not None:
-            self._resolution_selector.setCurrentText(str(settings.get("resolution", "1920 × 1080")))
-        exposure = settings.get("exposure", {})
-        if self._exposure_slider is not None:
-            self._exposure_slider.setValue(int(exposure.get("value", self._exposure_slider.value())))
-        if self._auto_exposure_toggle is not None:
-            self._auto_exposure_toggle.setChecked(bool(exposure.get("auto", True)))
-        gain = settings.get("gain", {})
-        if self._gain_slider is not None:
-            self._gain_slider.setValue(int(gain.get("value", self._gain_slider.value())))
-        if self._auto_gain_toggle is not None:
-            self._auto_gain_toggle.setChecked(bool(gain.get("auto", True)))
-        white_balance = settings.get("white_balance", {})
-        if self._wb_slider is not None:
-            self._wb_slider.setValue(int(white_balance.get("value", self._wb_slider.value())))
-        if self._auto_wb_toggle is not None:
-            self._auto_wb_toggle.setChecked(bool(white_balance.get("auto", True)))
-        aruco = settings.get("aruco", {})
-        if self._aruco_toggle is not None:
-            self._aruco_toggle.setChecked(bool(aruco.get("enabled", True)))
-            self._update_toggle_label(self._aruco_toggle, "On", "Off")
-        if self._aruco_dict is not None:
-            self._aruco_dict.setCurrentText(str(aruco.get("dictionary", "DICT_4X4_50")))
+    def _force_idr(self) -> None:
+        self._api.force_idr(self._current_camera_id)
 
     def _presets_dir(self) -> Path:
         return Path(__file__).with_name("presets")
 
     def _save_preset(self) -> None:
-        preset_name, ok = QtWidgets.QInputDialog.getText(
-            self,
-            "Save preset",
-            "Preset name:",
-        )
+        self._sync_current_camera_from_ui()
+        if not self._config["presets"]["allow_save_load"]:
+            return
+
+        preset_name, ok = QtWidgets.QInputDialog.getText(self, "Save preset", "Preset name:")
         if not ok or not preset_name.strip():
             return
+
         safe_name = preset_name.strip().replace("/", "-")
         preset_path = self._presets_dir() / f"{safe_name}.json"
         preset_path.parent.mkdir(parents=True, exist_ok=True)
-        preset_settings = self._collect_settings(include_name=False)
-        preset_path.write_text(
-            json.dumps(preset_settings, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        preset_path.write_text(json.dumps(self._config, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def _load_preset(self) -> None:
+        if not self._config["presets"]["allow_save_load"]:
+            return
+
         presets_dir = self._presets_dir()
         if not presets_dir.exists():
             QtWidgets.QMessageBox.information(self, "Load preset", "No presets found.")
             return
-        preset_files = sorted(presets_dir.glob("*.json"))
-        if not preset_files:
+
+        files = sorted(presets_dir.glob("*.json"))
+        if not files:
             QtWidgets.QMessageBox.information(self, "Load preset", "No presets found.")
             return
-        preset_names = [path.stem for path in preset_files]
-        selection, ok = QtWidgets.QInputDialog.getItem(
-            self,
-            "Load preset",
-            "Choose preset:",
-            preset_names,
-            0,
-            False,
-        )
-        if not ok or not selection:
+
+        names = [f.stem for f in files]
+        selected, ok = QtWidgets.QInputDialog.getItem(self, "Load preset", "Choose preset:", names, 0, False)
+        if not ok or not selected:
             return
-        preset_path = presets_dir / f"{selection}.json"
+
         try:
-            preset_settings = json.loads(preset_path.read_text(encoding="utf-8"))
+            loaded = json.loads((presets_dir / f"{selected}.json").read_text(encoding="utf-8"))
+            self._config = self._merge_with_defaults(loaded, self._default_config())
         except (json.JSONDecodeError, OSError):
             QtWidgets.QMessageBox.warning(self, "Load preset", "Preset could not be loaded.")
             return
-        self._apply_settings_snapshot(preset_settings)
-        self._persist_current_settings()
 
-    def _persist_current_settings(self) -> None:
-        settings = self._collect_settings(include_name=True)
-        self._camera_settings[self._camera_key()] = settings
-        self._settings_file.write_text(
-            json.dumps(self._camera_settings, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        self._current_camera_id = int(self._config["ui"]["selected_camera_id"])
+        self._select_camera(self._current_camera_id)
 
 
 if __name__ == "__main__":
@@ -621,6 +655,6 @@ if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
     panel = VpuPanel(ApiClient())
-    panel.resize(800, 600)
+    panel.resize(1200, 900)
     panel.show()
     sys.exit(app.exec())
