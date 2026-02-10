@@ -1,1 +1,346 @@
-{}
+{
+  "camera_1": {
+    "name": "Camera 1",
+    "enabled": true,
+    "mode": "Opptak",
+    "fps": "30 FPS",
+    "resolution": "1920 × 1080 (HD)",
+    "exposure": {
+      "auto": true,
+      "value": 40
+    },
+    "gain": {
+      "auto": true,
+      "value": 40
+    },
+    "white_balance": {
+      "auto": true,
+      "preset": "Daylight"
+    },
+    "bitrate": "8 Mbps",
+    "codec": "H.264",
+    "aruco": {
+      "enabled": true,
+      "dictionary": "DICT_4X4_50"
+    },
+    "advanced": {
+      "roi": {
+        "enabled": false,
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "black_level": 40,
+      "encoder": {
+        "keyframe_interval": 30
+      },
+      "ai_cv": {
+        "input_resolution": "1280 × 720",
+        "processing_rate_every_n_frames": 1,
+        "overlay": true
+      }
+    }
+  },
+  "camera_2": {
+    "name": "Camera 2",
+    "enabled": true,
+    "mode": "Opptak",
+    "fps": "30 FPS",
+    "resolution": "1920 × 1080 (HD)",
+    "exposure": {
+      "auto": true,
+      "value": 40
+    },
+    "gain": {
+      "auto": true,
+      "value": 40
+    },
+    "white_balance": {
+      "auto": true,
+      "preset": "Daylight"
+    },
+    "bitrate": "8 Mbps",
+    "codec": "H.264",
+    "aruco": {
+      "enabled": true,
+      "dictionary": "DICT_4X4_50"
+    },
+    "advanced": {
+      "roi": {
+        "enabled": false,
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "black_level": 40,
+      "encoder": {
+        "keyframe_interval": 30
+      },
+      "ai_cv": {
+        "input_resolution": "1280 × 720",
+        "processing_rate_every_n_frames": 1,
+        "overlay": true
+      }
+    }
+  },
+  "camera_3": {
+    "name": "Camera 3",
+    "enabled": true,
+    "mode": "Opptak",
+    "fps": "30 FPS",
+    "resolution": "1920 × 1080 (HD)",
+    "exposure": {
+      "auto": true,
+      "value": 40
+    },
+    "gain": {
+      "auto": true,
+      "value": 40
+    },
+    "white_balance": {
+      "auto": true,
+      "preset": "Daylight"
+    },
+    "bitrate": "8 Mbps",
+    "codec": "H.264",
+    "aruco": {
+      "enabled": true,
+      "dictionary": "DICT_4X4_50"
+    },
+    "advanced": {
+      "roi": {
+        "enabled": false,
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "black_level": 40,
+      "encoder": {
+        "keyframe_interval": 30
+      },
+      "ai_cv": {
+        "input_resolution": "1280 × 720",
+        "processing_rate_every_n_frames": 1,
+        "overlay": true
+      }
+    }
+  },
+  "camera_4": {
+    "name": "Camera 4",
+    "enabled": true,
+    "mode": "Opptak",
+    "fps": "30 FPS",
+    "resolution": "1920 × 1080 (HD)",
+    "exposure": {
+      "auto": true,
+      "value": 40
+    },
+    "gain": {
+      "auto": true,
+      "value": 40
+    },
+    "white_balance": {
+      "auto": true,
+      "preset": "Daylight"
+    },
+    "bitrate": "8 Mbps",
+    "codec": "H.264",
+    "aruco": {
+      "enabled": true,
+      "dictionary": "DICT_4X4_50"
+    },
+    "advanced": {
+      "roi": {
+        "enabled": false,
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "black_level": 40,
+      "encoder": {
+        "keyframe_interval": 30
+      },
+      "ai_cv": {
+        "input_resolution": "1280 × 720",
+        "processing_rate_every_n_frames": 1,
+        "overlay": true
+      }
+    }
+  },
+  "camera_5": {
+    "name": "Camera 5",
+    "enabled": true,
+    "mode": "Opptak",
+    "fps": "30 FPS",
+    "resolution": "1920 × 1080 (HD)",
+    "exposure": {
+      "auto": true,
+      "value": 40
+    },
+    "gain": {
+      "auto": true,
+      "value": 40
+    },
+    "white_balance": {
+      "auto": true,
+      "preset": "Daylight"
+    },
+    "bitrate": "8 Mbps",
+    "codec": "H.264",
+    "aruco": {
+      "enabled": true,
+      "dictionary": "DICT_4X4_50"
+    },
+    "advanced": {
+      "roi": {
+        "enabled": false,
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "black_level": 40,
+      "encoder": {
+        "keyframe_interval": 30
+      },
+      "ai_cv": {
+        "input_resolution": "1280 × 720",
+        "processing_rate_every_n_frames": 1,
+        "overlay": true
+      }
+    }
+  },
+  "camera_6": {
+    "name": "Camera 6",
+    "enabled": true,
+    "mode": "Opptak",
+    "fps": "30 FPS",
+    "resolution": "1920 × 1080 (HD)",
+    "exposure": {
+      "auto": true,
+      "value": 40
+    },
+    "gain": {
+      "auto": true,
+      "value": 40
+    },
+    "white_balance": {
+      "auto": true,
+      "preset": "Daylight"
+    },
+    "bitrate": "8 Mbps",
+    "codec": "H.264",
+    "aruco": {
+      "enabled": true,
+      "dictionary": "DICT_4X4_50"
+    },
+    "advanced": {
+      "roi": {
+        "enabled": false,
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "black_level": 40,
+      "encoder": {
+        "keyframe_interval": 30
+      },
+      "ai_cv": {
+        "input_resolution": "1280 × 720",
+        "processing_rate_every_n_frames": 1,
+        "overlay": true
+      }
+    }
+  },
+  "camera_7": {
+    "name": "Camera 7",
+    "enabled": true,
+    "mode": "Opptak",
+    "fps": "30 FPS",
+    "resolution": "1920 × 1080 (HD)",
+    "exposure": {
+      "auto": true,
+      "value": 40
+    },
+    "gain": {
+      "auto": true,
+      "value": 40
+    },
+    "white_balance": {
+      "auto": true,
+      "preset": "Daylight"
+    },
+    "bitrate": "8 Mbps",
+    "codec": "H.264",
+    "aruco": {
+      "enabled": true,
+      "dictionary": "DICT_4X4_50"
+    },
+    "advanced": {
+      "roi": {
+        "enabled": false,
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "black_level": 40,
+      "encoder": {
+        "keyframe_interval": 30
+      },
+      "ai_cv": {
+        "input_resolution": "1280 × 720",
+        "processing_rate_every_n_frames": 1,
+        "overlay": true
+      }
+    }
+  },
+  "camera_8": {
+    "name": "Camera 8",
+    "enabled": true,
+    "mode": "Opptak",
+    "fps": "30 FPS",
+    "resolution": "1920 × 1080 (HD)",
+    "exposure": {
+      "auto": true,
+      "value": 40
+    },
+    "gain": {
+      "auto": true,
+      "value": 40
+    },
+    "white_balance": {
+      "auto": true,
+      "preset": "Daylight"
+    },
+    "bitrate": "8 Mbps",
+    "codec": "H.264",
+    "aruco": {
+      "enabled": true,
+      "dictionary": "DICT_4X4_50"
+    },
+    "advanced": {
+      "roi": {
+        "enabled": false,
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 720
+      },
+      "black_level": 40,
+      "encoder": {
+        "keyframe_interval": 30
+      },
+      "ai_cv": {
+        "input_resolution": "1280 × 720",
+        "processing_rate_every_n_frames": 1,
+        "overlay": true
+      }
+    }
+  }
+}
