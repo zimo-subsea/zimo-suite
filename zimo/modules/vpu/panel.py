@@ -69,6 +69,7 @@ class VpuPanel(QtWidgets.QWidget):
         layout.addWidget(subtitle)
         body_layout = QtWidgets.QHBoxLayout()
         body_layout.setSpacing(16)
+        body_layout.setContentsMargins(0, 0, 0, 16)
 
         left_column = QtWidgets.QVBoxLayout()
         left_column.setSpacing(16)
@@ -92,8 +93,6 @@ class VpuPanel(QtWidgets.QWidget):
         body_layout.addWidget(settings_scroll, 2)
 
         layout.addLayout(body_layout)
-
-        layout.addStretch()
 
     def _build_selection_card(self) -> QtWidgets.QWidget:
         card = QtWidgets.QWidget()
@@ -412,6 +411,8 @@ class VpuPanel(QtWidgets.QWidget):
         advanced_toggle.toggled.connect(self._set_advanced_settings_expanded)
         layout.addWidget(advanced_panel)
 
+        layout.addStretch()
+
         presets_row = QtWidgets.QHBoxLayout()
         apply_button = QtWidgets.QPushButton("Apply")
         apply_button.setCursor(QtCore.Qt.PointingHandCursor)
@@ -433,7 +434,7 @@ class VpuPanel(QtWidgets.QWidget):
         presets_row.addStretch()
         presets_row.addWidget(docs_button)
         layout.addLayout(presets_row)
-        layout.addStretch()
+        layout.addSpacing(16)
 
         self._apply_loaded_settings()
 
