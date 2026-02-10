@@ -40,6 +40,21 @@ class VpuPanel(QtWidgets.QWidget):
         self._enable_toggle: QtWidgets.QCheckBox | None = None
         self._aruco_toggle: QtWidgets.QCheckBox | None = None
         self._aruco_dict: QtWidgets.QComboBox | None = None
+        self._advanced_toggle: QtWidgets.QPushButton | None = None
+        self._advanced_settings_panel: QtWidgets.QWidget | None = None
+        self._sensor_roi_enable_toggle: QtWidgets.QCheckBox | None = None
+        self._sensor_roi_x: QtWidgets.QSpinBox | None = None
+        self._sensor_roi_y: QtWidgets.QSpinBox | None = None
+        self._sensor_roi_width: QtWidgets.QSpinBox | None = None
+        self._sensor_roi_height: QtWidgets.QSpinBox | None = None
+        self._sensor_black_level_slider: QtWidgets.QSlider | None = None
+        self._sensor_black_level_spinbox: QtWidgets.QSpinBox | None = None
+        self._encoder_keyframe_interval: QtWidgets.QSpinBox | None = None
+        self._ai_input_resolution: QtWidgets.QComboBox | None = None
+        self._ai_processing_rate: QtWidgets.QSpinBox | None = None
+        self._ai_overlay_toggle: QtWidgets.QCheckBox | None = None
+        self._network_destination_ip: QtWidgets.QLineEdit | None = None
+        self._network_base_port: QtWidgets.QSpinBox | None = None
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -198,15 +213,73 @@ class VpuPanel(QtWidgets.QWidget):
         form.addWidget(resolution_selector, row, 1)
         row += 1
 
+        exposure_slider = self._build_slider()
+        auto_exposure_toggle = self._build_toggle("Auto", "Manual")
+        self._bind_auto_toggle(auto_exposure_toggle, exposure_slider)
+        self._exposure_slider = exposure_slider
+        self._auto_exposure_toggle = auto_exposure_toggle
+        form.addWidget(QtWidgets.QLabel("Exposure"), row, 0)
+        form.addWidget(exposure_slider, row, 1)
+        form.addWidget(auto_exposure_toggle, row, 2)
+        row += 1
+
+        gain_slider = self._build_slider()
+        auto_gain_toggle = self._build_toggle("Auto", "Manual")
+        self._bind_auto_toggle(auto_gain_toggle, gain_slider)
+        self._gain_slider = gain_slider
+        self._auto_gain_toggle = auto_gain_toggle
+        form.addWidget(QtWidgets.QLabel("Gain"), row, 0)
+        form.addWidget(gain_slider, row, 1)
+        form.addWidget(auto_gain_toggle, row, 2)
+        row += 1
+
+        wb_slider = self._build_slider()
+        auto_wb_toggle = self._build_toggle("Auto", "Manual")
+        self._bind_auto_toggle(auto_wb_toggle, wb_slider)
+        self._wb_slider = wb_slider
+        self._auto_wb_toggle = auto_wb_toggle
+        form.addWidget(QtWidgets.QLabel("White balance"), row, 0)
+        form.addWidget(wb_slider, row, 1)
+        form.addWidget(auto_wb_toggle, row, 2)
+        row += 1
+
+        docs_button = QtWidgets.QPushButton("Open camera documentation")
+        docs_button.setCursor(QtCore.Qt.PointingHandCursor)
+        docs_button.clicked.connect(
+            lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://docs.zimo.no/products/camera/"))
+        )
+        form.addWidget(QtWidgets.QLabel("Camera docs"), row, 0)
+        form.addWidget(docs_button, row, 1)
+        row += 1
+
+        aruco_toggle = self._build_toggle("On", "Off")
+        aruco_toggle.toggled.connect(lambda checked: self._update_toggle_label(aruco_toggle, "On", "Off"))
+        self._update_toggle_label(aruco_toggle, "On", "Off")
+        self._aruco_toggle = aruco_toggle
+        form.addWidget(QtWidgets.QLabel("Enable ArUco"), row, 0)
+        form.addWidget(aruco_toggle, row, 1)
+        row += 1
+
+        aruco_dict = QtWidgets.QComboBox()
+        aruco_dict.addItems(
+            [
+                "DICT_4X4_50",
+                "DICT_4X4_100",
+                "DICT_5X5_50",
+                "DICT_6X6_100",
+                "DICT_7X7_250",
+            ]
+        )
+        self._aruco_dict = aruco_dict
+        form.addWidget(QtWidgets.QLabel("ArUco dictionary"), row, 0)
+        form.addWidget(aruco_dict, row, 1)
+        row += 1
+
         layout.addLayout(form)
 
-        advanced_toggle = QtWidgets.QToolButton()
+        advanced_toggle = QtWidgets.QPushButton("Advanced settings ▸")
         advanced_toggle.setObjectName("AdvancedSettingsToggle")
-        advanced_toggle.setText("Advanced settings")
         advanced_toggle.setCheckable(True)
-        advanced_toggle.setChecked(False)
-        advanced_toggle.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
-        advanced_toggle.setArrowType(QtCore.Qt.RightArrow)
         advanced_toggle.setCursor(QtCore.Qt.PointingHandCursor)
         self._advanced_toggle = advanced_toggle
         layout.addWidget(advanced_toggle)
@@ -221,66 +294,123 @@ class VpuPanel(QtWidgets.QWidget):
 
         advanced_row = 0
 
-        exposure_slider = self._build_slider()
-        auto_exposure_toggle = self._build_toggle("Auto", "Manual")
-        self._bind_auto_toggle(auto_exposure_toggle, exposure_slider)
-        self._exposure_slider = exposure_slider
-        self._auto_exposure_toggle = auto_exposure_toggle
-        advanced_form.addWidget(QtWidgets.QLabel("Exposure"), advanced_row, 0)
-        advanced_form.addWidget(exposure_slider, advanced_row, 1)
-        advanced_form.addWidget(auto_exposure_toggle, advanced_row, 2)
+        sensor_header = QtWidgets.QLabel("Sensor")
+        sensor_header.setObjectName("CardValue")
+        advanced_form.addWidget(sensor_header, advanced_row, 0, 1, 3)
         advanced_row += 1
 
-        gain_slider = self._build_slider()
-        auto_gain_toggle = self._build_toggle("Auto", "Manual")
-        self._bind_auto_toggle(auto_gain_toggle, gain_slider)
-        self._gain_slider = gain_slider
-        self._auto_gain_toggle = auto_gain_toggle
-        advanced_form.addWidget(QtWidgets.QLabel("Gain"), advanced_row, 0)
-        advanced_form.addWidget(gain_slider, advanced_row, 1)
-        advanced_form.addWidget(auto_gain_toggle, advanced_row, 2)
+        roi_toggle = self._build_toggle("On", "Off")
+        roi_toggle.toggled.connect(lambda checked: self._update_toggle_label(roi_toggle, "On", "Off"))
+        self._update_toggle_label(roi_toggle, "On", "Off")
+        self._sensor_roi_enable_toggle = roi_toggle
+        advanced_form.addWidget(QtWidgets.QLabel("ROI-enable"), advanced_row, 0)
+        advanced_form.addWidget(roi_toggle, advanced_row, 1)
         advanced_row += 1
 
-        wb_slider = self._build_slider()
-        auto_wb_toggle = self._build_toggle("Auto", "Manual")
-        self._bind_auto_toggle(auto_wb_toggle, wb_slider)
-        self._wb_slider = wb_slider
-        self._auto_wb_toggle = auto_wb_toggle
-        advanced_form.addWidget(QtWidgets.QLabel("White balance"), advanced_row, 0)
-        advanced_form.addWidget(wb_slider, advanced_row, 1)
-        advanced_form.addWidget(auto_wb_toggle, advanced_row, 2)
+        roi_row = QtWidgets.QHBoxLayout()
+        roi_x = QtWidgets.QSpinBox()
+        roi_x.setRange(0, 10000)
+        roi_x.setPrefix("x: ")
+        roi_y = QtWidgets.QSpinBox()
+        roi_y.setRange(0, 10000)
+        roi_y.setPrefix("y: ")
+        roi_w = QtWidgets.QSpinBox()
+        roi_w.setRange(1, 10000)
+        roi_w.setPrefix("w: ")
+        roi_h = QtWidgets.QSpinBox()
+        roi_h.setRange(1, 10000)
+        roi_h.setPrefix("h: ")
+        self._sensor_roi_x = roi_x
+        self._sensor_roi_y = roi_y
+        self._sensor_roi_width = roi_w
+        self._sensor_roi_height = roi_h
+        roi_row.addWidget(roi_x)
+        roi_row.addWidget(roi_y)
+        roi_row.addWidget(roi_w)
+        roi_row.addWidget(roi_h)
+        roi_widget = QtWidgets.QWidget()
+        roi_widget.setLayout(roi_row)
+        advanced_form.addWidget(QtWidgets.QLabel("ROI-innstillinger"), advanced_row, 0)
+        advanced_form.addWidget(roi_widget, advanced_row, 1, 1, 2)
         advanced_row += 1
 
-        docs_button = QtWidgets.QPushButton("Open camera documentation")
-        docs_button.setCursor(QtCore.Qt.PointingHandCursor)
-        docs_button.clicked.connect(
-            lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://docs.zimo.no/products/camera/"))
-        )
-        advanced_form.addWidget(QtWidgets.QLabel("Camera docs"), advanced_row, 0)
-        advanced_form.addWidget(docs_button, advanced_row, 1)
+        black_level_slider, black_level_spin = self._build_slider_with_spinbox()
+        self._sensor_black_level_slider = black_level_slider
+        self._sensor_black_level_spinbox = black_level_spin
+        black_level_widget = QtWidgets.QWidget()
+        black_level_layout = QtWidgets.QHBoxLayout(black_level_widget)
+        black_level_layout.setContentsMargins(0, 0, 0, 0)
+        black_level_layout.setSpacing(8)
+        black_level_layout.addWidget(black_level_slider, 1)
+        black_level_layout.addWidget(black_level_spin)
+        advanced_form.addWidget(QtWidgets.QLabel("Black level"), advanced_row, 0)
+        advanced_form.addWidget(black_level_widget, advanced_row, 1, 1, 2)
         advanced_row += 1
 
-        aruco_toggle = self._build_toggle("On", "Off")
-        aruco_toggle.toggled.connect(lambda checked: self._update_toggle_label(aruco_toggle, "On", "Off"))
-        self._update_toggle_label(aruco_toggle, "On", "Off")
-        self._aruco_toggle = aruco_toggle
-        advanced_form.addWidget(QtWidgets.QLabel("Enable ArUco"), advanced_row, 0)
-        advanced_form.addWidget(aruco_toggle, advanced_row, 1)
+        encoder_header = QtWidgets.QLabel("Encoder")
+        encoder_header.setObjectName("CardValue")
+        advanced_form.addWidget(encoder_header, advanced_row, 0, 1, 3)
         advanced_row += 1
 
-        aruco_dict = QtWidgets.QComboBox()
-        aruco_dict.addItems(
-            [
-                "DICT_4X4_50",
-                "DICT_4X4_100",
-                "DICT_5X5_50",
-                "DICT_6X6_100",
-                "DICT_7X7_250",
-            ]
-        )
-        self._aruco_dict = aruco_dict
-        advanced_form.addWidget(QtWidgets.QLabel("ArUco dictionary"), advanced_row, 0)
-        advanced_form.addWidget(aruco_dict, advanced_row, 1)
+        keyframe_interval = QtWidgets.QSpinBox()
+        keyframe_interval.setRange(1, 600)
+        self._encoder_keyframe_interval = keyframe_interval
+        advanced_form.addWidget(QtWidgets.QLabel("Keyframe interval"), advanced_row, 0)
+        advanced_form.addWidget(keyframe_interval, advanced_row, 1)
+        advanced_row += 1
+
+        force_idr_button = QtWidgets.QPushButton("Force IDR")
+        force_idr_button.setCursor(QtCore.Qt.PointingHandCursor)
+        force_idr_button.clicked.connect(self._force_idr)
+        advanced_form.addWidget(QtWidgets.QLabel("Force IDR"), advanced_row, 0)
+        advanced_form.addWidget(force_idr_button, advanced_row, 1)
+        advanced_row += 1
+
+        ai_header = QtWidgets.QLabel("AI/CV")
+        ai_header.setObjectName("CardValue")
+        advanced_form.addWidget(ai_header, advanced_row, 0, 1, 3)
+        advanced_row += 1
+
+        ai_input_resolution = QtWidgets.QComboBox()
+        ai_input_resolution.addItems(["640 × 360", "1280 × 720", "1920 × 1080"])
+        self._ai_input_resolution = ai_input_resolution
+        advanced_form.addWidget(QtWidgets.QLabel("AI input resolution"), advanced_row, 0)
+        advanced_form.addWidget(ai_input_resolution, advanced_row, 1)
+        advanced_row += 1
+
+        ai_processing_rate = QtWidgets.QSpinBox()
+        ai_processing_rate.setRange(1, 120)
+        ai_processing_rate.setSuffix(" (hver N-te frame)")
+        self._ai_processing_rate = ai_processing_rate
+        advanced_form.addWidget(QtWidgets.QLabel("AI prosesseringsrate"), advanced_row, 0)
+        advanced_form.addWidget(ai_processing_rate, advanced_row, 1)
+        advanced_row += 1
+
+        overlay_toggle = self._build_toggle("On", "Off")
+        overlay_toggle.toggled.connect(lambda checked: self._update_toggle_label(overlay_toggle, "On", "Off"))
+        self._update_toggle_label(overlay_toggle, "On", "Off")
+        self._ai_overlay_toggle = overlay_toggle
+        advanced_form.addWidget(QtWidgets.QLabel("Overlay"), advanced_row, 0)
+        advanced_form.addWidget(overlay_toggle, advanced_row, 1)
+        advanced_row += 1
+
+        network_header = QtWidgets.QLabel("Nettverk")
+        network_header.setObjectName("CardValue")
+        advanced_form.addWidget(network_header, advanced_row, 0, 1, 3)
+        advanced_row += 1
+
+        destination_ip = QtWidgets.QLineEdit()
+        destination_ip.setPlaceholderText("192.168.1.100")
+        self._network_destination_ip = destination_ip
+        advanced_form.addWidget(QtWidgets.QLabel("Destination IP"), advanced_row, 0)
+        advanced_form.addWidget(destination_ip, advanced_row, 1)
+        advanced_row += 1
+
+        base_port = QtWidgets.QSpinBox()
+        base_port.setRange(1, 65535)
+        self._network_base_port = base_port
+        advanced_form.addWidget(QtWidgets.QLabel("Base port"), advanced_row, 0)
+        advanced_form.addWidget(base_port, advanced_row, 1)
 
         self._advanced_settings_panel = advanced_panel
         advanced_toggle.toggled.connect(self._set_advanced_settings_expanded)
@@ -325,6 +455,18 @@ class VpuPanel(QtWidgets.QWidget):
         return toggle
 
     @staticmethod
+    def _build_slider_with_spinbox() -> tuple[QtWidgets.QSlider, QtWidgets.QSpinBox]:
+        slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        slider.setRange(0, 255)
+        slider.setValue(16)
+        spinbox = QtWidgets.QSpinBox()
+        spinbox.setRange(0, 255)
+        spinbox.setValue(16)
+        slider.valueChanged.connect(spinbox.setValue)
+        spinbox.valueChanged.connect(slider.setValue)
+        return slider, spinbox
+
+    @staticmethod
     def _update_toggle_label(toggle: QtWidgets.QCheckBox, label_on: str, label_off: str) -> None:
         toggle.setText(label_on if toggle.isChecked() else label_off)
 
@@ -338,8 +480,13 @@ class VpuPanel(QtWidgets.QWidget):
         toggle.toggled.connect(_sync_state)
 
     def _set_advanced_settings_expanded(self, expanded: bool) -> None:
-        self._advanced_settings_panel.setVisible(expanded)
-        self._advanced_toggle.setArrowType(QtCore.Qt.DownArrow if expanded else QtCore.Qt.RightArrow)
+        if self._advanced_settings_panel is not None:
+            self._advanced_settings_panel.setVisible(expanded)
+        if self._advanced_toggle is not None:
+            self._advanced_toggle.setText("Advanced settings ▾" if expanded else "Advanced settings ▸")
+
+    def _force_idr(self) -> None:
+        QtWidgets.QMessageBox.information(self, "Force IDR", "IDR frame triggered.")
 
     @staticmethod
     def _build_status_dot(is_online: bool) -> QtWidgets.QLabel:
@@ -435,6 +582,20 @@ class VpuPanel(QtWidgets.QWidget):
             "gain": {"value": 40, "auto": True},
             "white_balance": {"value": 40, "auto": True},
             "aruco": {"enabled": True, "dictionary": "DICT_4X4_50"},
+            "advanced": {
+                "sensor": {
+                    "roi_enabled": False,
+                    "roi": {"x": 0, "y": 0, "width": 1920, "height": 1080},
+                    "black_level": 16,
+                },
+                "encoder": {"keyframe_interval": 30},
+                "ai_cv": {
+                    "input_resolution": "1280 × 720",
+                    "processing_rate": 1,
+                    "overlay": True,
+                },
+                "network": {"destination_ip": "192.168.1.100", "base_port": 5000},
+            },
         }
 
     def _camera_key(self, index: int | None = None) -> str:
@@ -443,30 +604,7 @@ class VpuPanel(QtWidgets.QWidget):
         return f"camera_{index + 1}"
 
     def _apply_settings(self) -> None:
-        if self._fps_selector is None or self._resolution_selector is None:
-            return
-        settings = {
-            "name": self._camera_names[self._current_camera_index],
-            "enabled": bool(self._enable_toggle and self._enable_toggle.isChecked()),
-            "fps": self._fps_selector.currentText(),
-            "resolution": self._resolution_selector.currentText(),
-            "exposure": {
-                "value": self._exposure_slider.value() if self._exposure_slider else 0,
-                "auto": bool(self._auto_exposure_toggle and self._auto_exposure_toggle.isChecked()),
-            },
-            "gain": {
-                "value": self._gain_slider.value() if self._gain_slider else 0,
-                "auto": bool(self._auto_gain_toggle and self._auto_gain_toggle.isChecked()),
-            },
-            "white_balance": {
-                "value": self._wb_slider.value() if self._wb_slider else 0,
-                "auto": bool(self._auto_wb_toggle and self._auto_wb_toggle.isChecked()),
-            },
-            "aruco": {
-                "enabled": bool(self._aruco_toggle and self._aruco_toggle.isChecked()),
-                "dictionary": self._aruco_dict.currentText() if self._aruco_dict else "",
-            },
-        }
+        settings = self._collect_settings(include_name=True)
         self._camera_settings[self._camera_key()] = settings
         self._settings_file.write_text(
             json.dumps(self._camera_settings, indent=2, ensure_ascii=False),
@@ -519,6 +657,46 @@ class VpuPanel(QtWidgets.QWidget):
         if self._aruco_dict is not None:
             self._aruco_dict.setCurrentText(aruco.get("dictionary", self._aruco_dict.currentText()))
 
+        advanced = settings.get("advanced", {})
+        sensor = advanced.get("sensor", {}) if isinstance(advanced, dict) else {}
+        roi = sensor.get("roi", {}) if isinstance(sensor, dict) else {}
+        if self._sensor_roi_enable_toggle is not None:
+            self._sensor_roi_enable_toggle.setChecked(bool(sensor.get("roi_enabled", False)))
+            self._update_toggle_label(self._sensor_roi_enable_toggle, "On", "Off")
+        if self._sensor_roi_x is not None:
+            self._sensor_roi_x.setValue(int(roi.get("x", self._sensor_roi_x.value())))
+        if self._sensor_roi_y is not None:
+            self._sensor_roi_y.setValue(int(roi.get("y", self._sensor_roi_y.value())))
+        if self._sensor_roi_width is not None:
+            self._sensor_roi_width.setValue(int(roi.get("width", self._sensor_roi_width.value())))
+        if self._sensor_roi_height is not None:
+            self._sensor_roi_height.setValue(int(roi.get("height", self._sensor_roi_height.value())))
+        if self._sensor_black_level_slider is not None:
+            self._sensor_black_level_slider.setValue(int(sensor.get("black_level", self._sensor_black_level_slider.value())))
+
+        encoder = advanced.get("encoder", {}) if isinstance(advanced, dict) else {}
+        if self._encoder_keyframe_interval is not None:
+            self._encoder_keyframe_interval.setValue(
+                int(encoder.get("keyframe_interval", self._encoder_keyframe_interval.value()))
+            )
+
+        ai_cv = advanced.get("ai_cv", {}) if isinstance(advanced, dict) else {}
+        if self._ai_input_resolution is not None:
+            self._ai_input_resolution.setCurrentText(
+                str(ai_cv.get("input_resolution", self._ai_input_resolution.currentText()))
+            )
+        if self._ai_processing_rate is not None:
+            self._ai_processing_rate.setValue(int(ai_cv.get("processing_rate", self._ai_processing_rate.value())))
+        if self._ai_overlay_toggle is not None:
+            self._ai_overlay_toggle.setChecked(bool(ai_cv.get("overlay", True)))
+            self._update_toggle_label(self._ai_overlay_toggle, "On", "Off")
+
+        network = advanced.get("network", {}) if isinstance(advanced, dict) else {}
+        if self._network_destination_ip is not None:
+            self._network_destination_ip.setText(str(network.get("destination_ip", self._network_destination_ip.text())))
+        if self._network_base_port is not None:
+            self._network_base_port.setValue(int(network.get("base_port", self._network_base_port.value())))
+
     def _collect_settings(self, include_name: bool = True) -> dict[str, object]:
         base = {
             "enabled": bool(self._enable_toggle and self._enable_toggle.isChecked()),
@@ -539,6 +717,30 @@ class VpuPanel(QtWidgets.QWidget):
             "aruco": {
                 "enabled": bool(self._aruco_toggle and self._aruco_toggle.isChecked()),
                 "dictionary": self._aruco_dict.currentText() if self._aruco_dict else "",
+            },
+            "advanced": {
+                "sensor": {
+                    "roi_enabled": bool(self._sensor_roi_enable_toggle and self._sensor_roi_enable_toggle.isChecked()),
+                    "roi": {
+                        "x": self._sensor_roi_x.value() if self._sensor_roi_x else 0,
+                        "y": self._sensor_roi_y.value() if self._sensor_roi_y else 0,
+                        "width": self._sensor_roi_width.value() if self._sensor_roi_width else 1920,
+                        "height": self._sensor_roi_height.value() if self._sensor_roi_height else 1080,
+                    },
+                    "black_level": self._sensor_black_level_slider.value() if self._sensor_black_level_slider else 16,
+                },
+                "encoder": {
+                    "keyframe_interval": self._encoder_keyframe_interval.value() if self._encoder_keyframe_interval else 30,
+                },
+                "ai_cv": {
+                    "input_resolution": self._ai_input_resolution.currentText() if self._ai_input_resolution else "1280 × 720",
+                    "processing_rate": self._ai_processing_rate.value() if self._ai_processing_rate else 1,
+                    "overlay": bool(self._ai_overlay_toggle and self._ai_overlay_toggle.isChecked()),
+                },
+                "network": {
+                    "destination_ip": self._network_destination_ip.text() if self._network_destination_ip else "",
+                    "base_port": self._network_base_port.value() if self._network_base_port else 5000,
+                },
             },
         }
         if include_name:
@@ -574,6 +776,42 @@ class VpuPanel(QtWidgets.QWidget):
             self._update_toggle_label(self._aruco_toggle, "On", "Off")
         if self._aruco_dict is not None:
             self._aruco_dict.setCurrentText(str(aruco.get("dictionary", "DICT_4X4_50")))
+
+        advanced = settings.get("advanced", {})
+        sensor = advanced.get("sensor", {}) if isinstance(advanced, dict) else {}
+        roi = sensor.get("roi", {}) if isinstance(sensor, dict) else {}
+        if self._sensor_roi_enable_toggle is not None:
+            self._sensor_roi_enable_toggle.setChecked(bool(sensor.get("roi_enabled", False)))
+            self._update_toggle_label(self._sensor_roi_enable_toggle, "On", "Off")
+        if self._sensor_roi_x is not None:
+            self._sensor_roi_x.setValue(int(roi.get("x", 0)))
+        if self._sensor_roi_y is not None:
+            self._sensor_roi_y.setValue(int(roi.get("y", 0)))
+        if self._sensor_roi_width is not None:
+            self._sensor_roi_width.setValue(int(roi.get("width", 1920)))
+        if self._sensor_roi_height is not None:
+            self._sensor_roi_height.setValue(int(roi.get("height", 1080)))
+        if self._sensor_black_level_slider is not None:
+            self._sensor_black_level_slider.setValue(int(sensor.get("black_level", 16)))
+
+        encoder = advanced.get("encoder", {}) if isinstance(advanced, dict) else {}
+        if self._encoder_keyframe_interval is not None:
+            self._encoder_keyframe_interval.setValue(int(encoder.get("keyframe_interval", 30)))
+
+        ai_cv = advanced.get("ai_cv", {}) if isinstance(advanced, dict) else {}
+        if self._ai_input_resolution is not None:
+            self._ai_input_resolution.setCurrentText(str(ai_cv.get("input_resolution", "1280 × 720")))
+        if self._ai_processing_rate is not None:
+            self._ai_processing_rate.setValue(int(ai_cv.get("processing_rate", 1)))
+        if self._ai_overlay_toggle is not None:
+            self._ai_overlay_toggle.setChecked(bool(ai_cv.get("overlay", True)))
+            self._update_toggle_label(self._ai_overlay_toggle, "On", "Off")
+
+        network = advanced.get("network", {}) if isinstance(advanced, dict) else {}
+        if self._network_destination_ip is not None:
+            self._network_destination_ip.setText(str(network.get("destination_ip", "192.168.1.100")))
+        if self._network_base_port is not None:
+            self._network_base_port.setValue(int(network.get("base_port", 5000)))
 
     def _presets_dir(self) -> Path:
         return Path(__file__).with_name("presets")

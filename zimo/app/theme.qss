@@ -143,7 +143,7 @@ QPushButton#GearButton:hover {
     background-color: #1a1f2a;
 }
 
-QToolButton#AdvancedSettingsToggle {
+QPushButton#AdvancedSettingsToggle {
     background-color: transparent;
     border: none;
     color: #d5d8de;
@@ -153,7 +153,11 @@ QToolButton#AdvancedSettingsToggle {
     padding: 4px 0;
 }
 
-QToolButton#AdvancedSettingsToggle:hover {
+QPushButton#AdvancedSettingsToggle:checked {
+    color: #ffffff;
+}
+
+QPushButton#AdvancedSettingsToggle:hover {
     color: #ffffff;
 }
 
