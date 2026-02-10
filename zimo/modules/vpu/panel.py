@@ -79,7 +79,6 @@ class VpuPanel(QtWidgets.QWidget):
         left_column.addWidget(selection_card, 1)
         left_column.addWidget(status_card, 1)
         left_column.addStretch()
-        left_column.addWidget(self._build_status_legend())
 
         settings_card = self._build_settings_card()
         settings_scroll = QtWidgets.QScrollArea()
