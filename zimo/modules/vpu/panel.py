@@ -248,15 +248,6 @@ class VpuPanel(QtWidgets.QWidget):
         form.addWidget(auto_wb_toggle, row, 2)
         row += 1
 
-        docs_button = QtWidgets.QPushButton("Open camera documentation")
-        docs_button.setCursor(QtCore.Qt.PointingHandCursor)
-        docs_button.clicked.connect(
-            lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://docs.zimo.no/products/camera/"))
-        )
-        form.addWidget(QtWidgets.QLabel("Camera docs"), row, 0)
-        form.addWidget(docs_button, row, 1)
-        row += 1
-
         aruco_toggle = self._build_toggle("On", "Off")
         aruco_toggle.toggled.connect(lambda checked: self._update_toggle_label(aruco_toggle, "On", "Off"))
         self._update_toggle_label(aruco_toggle, "On", "Off")
@@ -431,10 +422,16 @@ class VpuPanel(QtWidgets.QWidget):
         load_button = QtWidgets.QPushButton("Load preset")
         load_button.setCursor(QtCore.Qt.PointingHandCursor)
         load_button.clicked.connect(self._load_preset)
+        docs_button = QtWidgets.QPushButton("Open camera documentation")
+        docs_button.setCursor(QtCore.Qt.PointingHandCursor)
+        docs_button.clicked.connect(
+            lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://docs.zimo.no/products/camera/"))
+        )
         presets_row.addWidget(apply_button)
         presets_row.addWidget(save_button)
         presets_row.addWidget(load_button)
         presets_row.addStretch()
+        presets_row.addWidget(docs_button)
         layout.addLayout(presets_row)
         layout.addStretch()
 
