@@ -169,8 +169,18 @@ class VpuPanel(QtWidgets.QWidget):
     def _build_settings_card(self) -> QtWidgets.QWidget:
         card = QtWidgets.QWidget()
         card.setObjectName("Card")
-        layout = QtWidgets.QVBoxLayout(card)
-        layout.setContentsMargins(20, 20, 20, 20)
+        card_layout = QtWidgets.QVBoxLayout(card)
+        card_layout.setContentsMargins(20, 20, 20, 20)
+        card_layout.setSpacing(0)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+
+        content = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(content)
+        layout.setContentsMargins(0, 0, 8, 0)
         layout.setSpacing(16)
 
         title = QtWidgets.QLabel("Camera Settings")
@@ -220,7 +230,7 @@ class VpuPanel(QtWidgets.QWidget):
         row += 1
 
         exposure_slider = self._build_slider()
-        auto_exposure_toggle = self._build_toggle("Auto", "Manual")
+        auto_exposure_toggle = self._build_auto_checkbox()
         self._bind_auto_toggle(auto_exposure_toggle, exposure_slider)
         self._exposure_slider = exposure_slider
         self._auto_exposure_toggle = auto_exposure_toggle
@@ -230,7 +240,7 @@ class VpuPanel(QtWidgets.QWidget):
         row += 1
 
         gain_slider = self._build_slider()
-        auto_gain_toggle = self._build_toggle("Auto", "Manual")
+        auto_gain_toggle = self._build_auto_checkbox()
         self._bind_auto_toggle(auto_gain_toggle, gain_slider)
         self._gain_slider = gain_slider
         self._auto_gain_toggle = auto_gain_toggle
@@ -241,11 +251,10 @@ class VpuPanel(QtWidgets.QWidget):
 
         wb_preset_selector = QtWidgets.QComboBox()
         wb_preset_selector.addItems(["Daylight", "Cloudy", "Tungsten", "Fluorescent", "Warm LED", "Cool LED"])
-        auto_wb_toggle = self._build_toggle("Auto", "Manual")
+        auto_wb_toggle = self._build_auto_checkbox()
         self._auto_wb_toggle = auto_wb_toggle
         self._wb_preset_selector = wb_preset_selector
         def _sync_wb_mode(checked: bool) -> None:
-            auto_wb_toggle.setText("Auto" if checked else "Manual")
             wb_preset_selector.setEnabled(not checked)
         _sync_wb_mode(auto_wb_toggle.isChecked())
         auto_wb_toggle.toggled.connect(_sync_wb_mode)
@@ -387,6 +396,9 @@ class VpuPanel(QtWidgets.QWidget):
         layout.addLayout(presets_row)
         layout.addStretch()
 
+        scroll.setWidget(content)
+        card_layout.addWidget(scroll)
+
         self._apply_loaded_settings()
 
         return card
@@ -397,6 +409,13 @@ class VpuPanel(QtWidgets.QWidget):
         slider.setRange(0, 100)
         slider.setValue(40)
         return slider
+
+    @staticmethod
+    def _build_auto_checkbox() -> QtWidgets.QCheckBox:
+        auto_checkbox = QtWidgets.QCheckBox("Auto")
+        auto_checkbox.setCursor(QtCore.Qt.PointingHandCursor)
+        auto_checkbox.setChecked(True)
+        return auto_checkbox
 
     @staticmethod
     def _build_toggle(label_on: str, label_off: str) -> QtWidgets.QCheckBox:
@@ -414,7 +433,6 @@ class VpuPanel(QtWidgets.QWidget):
 
     def _bind_auto_toggle(self, toggle: QtWidgets.QCheckBox, slider: QtWidgets.QSlider) -> None:
         def _sync_state(checked: bool) -> None:
-            toggle.setText("Auto" if checked else "Manual")
             slider.setEnabled(not checked)
 
         toggle.setChecked(True)
