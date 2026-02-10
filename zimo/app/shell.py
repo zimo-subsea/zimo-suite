@@ -87,7 +87,7 @@ class ZiMOShell(QtWidgets.QMainWindow):
         layout.setContentsMargins(16, 24, 16, 24)
         layout.setSpacing(12)
 
-        title = QtWidgets.QLabel("Modules")
+        title = QtWidgets.QLabel("Products")
         title.setObjectName("SidebarTitle")
         layout.addWidget(title)
 
@@ -100,7 +100,7 @@ class ZiMOShell(QtWidgets.QMainWindow):
 
         layout.addStretch()
 
-        products_button = QtWidgets.QPushButton("Products")
+        products_button = QtWidgets.QPushButton("Explore our products")
         products_button.setObjectName("SidebarProductsButton")
         products_button.setCursor(QtCore.Qt.PointingHandCursor)
         products_button.clicked.connect(
