@@ -36,14 +36,6 @@ QMainWindow {
     color: #7b808b;
 }
 
-#SidebarLink {
-    color: #9aa0aa;
-    font-size: 12px;
-}
-
-#SidebarLink:hover {
-    color: #ffffff;
-}
 
 QPushButton {
     background-color: #141820;
@@ -63,6 +55,18 @@ QPushButton:checked {
     background-color: #1b2230;
     border: 1px solid #e11b22;
     color: #ffffff;
+}
+
+
+QPushButton#SidebarProductsButton {
+    background-color: #e11b22;
+    border: 1px solid #e11b22;
+    color: #ffffff;
+}
+
+QPushButton#SidebarProductsButton:hover {
+    background-color: #c7161d;
+    border: 1px solid #c7161d;
 }
 
 #PageTitle {

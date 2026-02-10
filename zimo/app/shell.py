@@ -99,14 +99,16 @@ class ZiMOShell(QtWidgets.QMainWindow):
         layout.addWidget(modules_container)
 
         layout.addStretch()
-        layout.addWidget(self._build_sidebar_status_legend())
 
-        products_link = QtWidgets.QLabel('<a href="https://www.zimo.no/products/">Products</a>')
-        products_link.setObjectName("SidebarLink")
-        products_link.setOpenExternalLinks(True)
-        products_link.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
-        products_link.setAlignment(QtCore.Qt.AlignLeft)
-        layout.addWidget(products_link)
+        products_button = QtWidgets.QPushButton("Products")
+        products_button.setObjectName("SidebarProductsButton")
+        products_button.setCursor(QtCore.Qt.PointingHandCursor)
+        products_button.clicked.connect(
+            lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://www.zimo.no/products/"))
+        )
+        layout.addWidget(products_button)
+
+        layout.addWidget(self._build_sidebar_status_legend())
 
         return sidebar
 
