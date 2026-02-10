@@ -82,9 +82,15 @@ class VpuPanel(QtWidgets.QWidget):
         left_column.addWidget(self._build_status_legend())
 
         settings_card = self._build_settings_card()
+        settings_scroll = QtWidgets.QScrollArea()
+        settings_scroll.setObjectName("SettingsScrollArea")
+        settings_scroll.setWidgetResizable(True)
+        settings_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        settings_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        settings_scroll.setWidget(settings_card)
 
         body_layout.addLayout(left_column, 1)
-        body_layout.addWidget(settings_card, 2)
+        body_layout.addWidget(settings_scroll, 2)
 
         layout.addLayout(body_layout)
 
