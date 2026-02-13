@@ -30,6 +30,7 @@ class ZiMOShell(QtWidgets.QMainWindow):
 
         self._api = ApiClient()
         self._modules: list[ModuleEntry] = []
+        self._sidebar_modules_layout: QtWidgets.QVBoxLayout | None = None
         self._module_status = {
             "Vision Processing Unit": True,
             "Vibration": False,
@@ -86,16 +87,33 @@ class ZiMOShell(QtWidgets.QMainWindow):
         layout.setContentsMargins(16, 24, 16, 24)
         layout.setSpacing(12)
 
-        title = QtWidgets.QLabel("Modules")
+        title = QtWidgets.QLabel("Products")
         title.setObjectName("SidebarTitle")
         layout.addWidget(title)
 
+        modules_container = QtWidgets.QWidget()
+        modules_layout = QtWidgets.QVBoxLayout(modules_container)
+        modules_layout.setContentsMargins(0, 0, 0, 0)
+        modules_layout.setSpacing(8)
+        self._sidebar_modules_layout = modules_layout
+        layout.addWidget(modules_container)
+
         layout.addStretch()
+
+        products_button = QtWidgets.QPushButton("Explore our products")
+        products_button.setObjectName("SidebarProductsButton")
+        products_button.setCursor(QtCore.Qt.PointingHandCursor)
+        products_button.clicked.connect(
+            lambda: QtGui.QDesktopServices.openUrl(QtCore.QUrl("https://www.zimo.no/products/"))
+        )
+        layout.addWidget(products_button)
+
+        layout.addWidget(self._build_sidebar_status_legend())
+
         return sidebar
 
     def _load_modules(self, modules: Iterable[ModuleBase]) -> None:
-        sidebar_layout = self._sidebar.layout()
-        if not isinstance(sidebar_layout, QtWidgets.QVBoxLayout):
+        if self._sidebar_modules_layout is None:
             return
 
         for module in modules:
@@ -116,7 +134,7 @@ class ZiMOShell(QtWidgets.QMainWindow):
             button.clicked.connect(lambda checked, m=module: self._select_module(m))
             row_layout.addWidget(button, 1)
 
-            sidebar_layout.insertWidget(sidebar_layout.count() - 2, row)
+            self._sidebar_modules_layout.addWidget(row)
 
             self._modules.append(
                 ModuleEntry(module=module, button=button, widget=panel, status_dot=status_dot)
@@ -131,6 +149,38 @@ class ZiMOShell(QtWidgets.QMainWindow):
             entry.button.setChecked(is_active)
             if is_active:
                 self._stack.setCurrentWidget(entry.widget)
+
+    def _build_sidebar_status_legend(self) -> QtWidgets.QWidget:
+        legend = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(legend)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+
+        title = QtWidgets.QLabel("Status legend")
+        title.setObjectName("SidebarTitle")
+
+        online_row = QtWidgets.QWidget()
+        online_layout = QtWidgets.QHBoxLayout(online_row)
+        online_layout.setContentsMargins(0, 0, 0, 0)
+        online_layout.setSpacing(8)
+        online_layout.addWidget(self._build_status_dot(True))
+        online_label = QtWidgets.QLabel("Connected")
+        online_label.setObjectName("CardMeta")
+        online_layout.addWidget(online_label)
+
+        offline_row = QtWidgets.QWidget()
+        offline_layout = QtWidgets.QHBoxLayout(offline_row)
+        offline_layout.setContentsMargins(0, 0, 0, 0)
+        offline_layout.setSpacing(8)
+        offline_layout.addWidget(self._build_status_dot(False))
+        offline_label = QtWidgets.QLabel("Disconnected")
+        offline_label.setObjectName("CardMeta")
+        offline_layout.addWidget(offline_label)
+
+        layout.addWidget(title)
+        layout.addWidget(online_row)
+        layout.addWidget(offline_row)
+        return legend
 
     @staticmethod
     def _build_status_dot(is_online: bool) -> QtWidgets.QLabel:

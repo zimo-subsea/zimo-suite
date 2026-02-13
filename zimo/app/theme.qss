@@ -36,6 +36,7 @@ QMainWindow {
     color: #7b808b;
 }
 
+
 QPushButton {
     background-color: #141820;
     border: 1px solid #242a35;
@@ -54,6 +55,18 @@ QPushButton:checked {
     background-color: #1b2230;
     border: 1px solid #e11b22;
     color: #ffffff;
+}
+
+
+QPushButton#SidebarProductsButton {
+    background-color: #e11b22;
+    border: 1px solid #e11b22;
+    color: #ffffff;
+}
+
+QPushButton#SidebarProductsButton:hover {
+    background-color: #c7161d;
+    border: 1px solid #c7161d;
 }
 
 #PageTitle {
@@ -141,6 +154,24 @@ QPushButton#GearButton {
 QPushButton#GearButton:hover {
     border-color: #313a47;
     background-color: #1a1f2a;
+}
+
+QPushButton#AdvancedSettingsToggle {
+    background-color: transparent;
+    border: none;
+    color: #d5d8de;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    padding: 4px 0;
+}
+
+QPushButton#AdvancedSettingsToggle:checked {
+    color: #ffffff;
+}
+
+QPushButton#AdvancedSettingsToggle:hover {
+    color: #ffffff;
 }
 
 QCheckBox#ToggleSwitch {
